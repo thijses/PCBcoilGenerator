@@ -348,8 +348,8 @@ class pygameDrawer():
         smoothCorners = (True if isinstance(coilToDraw.shape.stepsPerTurn, int) else False) # only smooth corners for squares
         lineWidthPixels = int(coilToDraw.traceWidth * self.sizeScale)
         layerAdjust: Callable[[tuple[float,float],int], tuple[float,float]] = lambda pos, currentLayer : ((-1 if ((currentLayer%2)!=0) else 1) * pos[0], pos[1] + coilToDraw.diam*currentLayer) # mirror odd layers
-        # if((coilToDraw.layers%2)!=0): # only in case of an un-even number of layers
-        #     pygame.draw.line(self.windowHandler.window, self.layerColors[1], self.realToPixelPos((lineList[-1][0], lineList[0][1])), self.realToPixelPos(lineList[-1]), lineWidthPixels) # draw return line first
+        if((coilToDraw.layers%2)!=0): # only in case of an un-even number of layers
+            pygame.draw.line(self.windowHandler.window, self.layerColors[1], self.realToPixelPos((lineList[-1][0], lineList[0][1])), self.realToPixelPos(lineList[-1]), lineWidthPixels) # draw return line first
         for layerItt in range(coilToDraw.layers):
             currentLayer = coilToDraw.layers-1-layerItt;  currentLayerColor = self.layerColors[currentLayer % len(self.layerColors)] # draw layers back to front
             for i in range(len(lineList)-1):

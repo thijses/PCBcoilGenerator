@@ -1,6 +1,5 @@
 """
-this code is intended for generating (and visualizing) PCB coils (a.k.a. planar inductors)
-I strive to generate a multilayer coil
+this code is intended for generating (and visualizing) PCB coils (a.k.a. planar inductors), with 1 or more layers
 this code can (currently) only produce coils with an equal width and height (one diameter parameter)
 
 in the making of this code, i used these papers:
@@ -20,6 +19,7 @@ In EasyEDA you can make polygons, but you'd have to manually fill in a lot of va
 
 TODO list:
  - research ways of importing the results into PCB design software
+ - improve pygame rendering (pygame struggles to draw thick lines like i want and the circle aren't helping much)
  - add an auto-optimizer (given a few limits (diameter, clearance, layers, layerSpacing) and targets (inductance, resistance, layers?), find the optimim coil design (minimizing for number of layers, resistance, etc.))
  - find a way to model rectangular/oval coils (non-square)
 """
