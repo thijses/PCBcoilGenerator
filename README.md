@@ -11,11 +11,11 @@ requirements:
 - python 3.10ish (tested with 3.10.8)
 libraries:
 - numpy (tested with 1.23.4)
-- pygame (tested with 3.10.8) (only for visualization)
-- dxfwrite (tested with 1.2.2) (only for DXF exporting)
+- pygame (tested with 3.10.8) (only needed for visualization)
+- dxfwrite (tested with 1.2.2) (only needed for DXF exporting)
 
 
 links to papers:
-paper[1] @ https://stanford.edu/~boyd/papers/pdf/inductance_expressions.pdf     which is applied for demo purposes @ https://coil32.net/pcb-coil.html
-paper[2] @ http://www.edatop.com/down/paper/NFC/A_new_calculation_for_designing_multilayer_planar_spiral_inductors_PDF.pdf
-paper[3] @ https://www.researchgate.net/publication/271291453_Design_and_Optimization_of_Printed_Circuit_Board_Inductors_for_Wireless_Power_Transfer_System
+- [1]  https://stanford.edu/~boyd/papers/pdf/inductance_expressions.pdf     which is applied for demo purposes at: https://coil32.net/pcb-coil.html
+- [2]  http://www.edatop.com/down/paper/NFC/A_new_calculation_for_designing_multilayer_planar_spiral_inductors_PDF.pdf
+- [3]  https://www.researchgate.net/publication/271291453_Design_and_Optimization_of_Printed_Circuit_Board_Inductors_for_Wireless_Power_Transfer_System
