@@ -106,10 +106,10 @@ class pygameDrawer():
         self.prevViewOffset = (self.viewOffset[0], self.viewOffset[1])
         self.movingViewOffsetMouseStart = [0,0]
 
-        self.layerColors = [[220,220,  0], # yellow
-                            [  0,  0,160], # blue
-                            [160,  0,  0], # red
-                            [  0,160,  0]] # green
+        self.layerColors = [[255,  0,  0], # red
+                            [153,153,102], # light brown
+                            [  0,128,  0], # dark green
+                            [  0,  0,255]] # blue
         
         self.FPStimer = time.time()
         self.FPSdata = []
@@ -140,14 +140,13 @@ class pygameDrawer():
         self.debugTextKey: str = "" # when no key is selected, default to empty string
         self.makeDebugText: Callable[[object], dict[str,list[str]]] = lambda coil:{     'few' : [
                                                                                     "diam [mm]: "+str(round(coil.diam, 1)),
-                                                                                    "simpleInnerDiam [mm]: "+str(round(coil.calcSimpleInnerDiam(), 1)),
                                                                                     "shape: "+coil.shape.__class__.__name__,
-                                                                                    "formula: "+coil.formula,
                                                                                     "turns: "+str(coil.turns),
                                                                                     "traceWidth [mm]: "+str(round(coil.traceWidth, 2)),
                                                                                     "clearance [mm]: "+str(round(coil.clearance, 2)),
+                                                                                    "oz copper: "+str(round(coil.ozCopper, 1)),
                                                                                     "layers: "+str(coil.layers),
-                                                                                    "layerSpacing [mm]: "+(str(round(coil.layerSpacing, 2)) if (coil.layers>1) else "(N/A)"),
+                                                                                    "PCBthickness [mm]: "+(str(round(coil.PCBthickness, 2)) if (coil.layers>1) else "(N/A)"),
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
                                                                                     "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 2)),
                                                                                     "induct/resist [uH/Ohm]: "+str(round(coil.calcInductance() * 1000000 / coil.calcTotalResistance(), 2)),
@@ -163,8 +162,9 @@ class pygameDrawer():
                                                                                     "turns: "+str(coil.turns),
                                                                                     "traceWidth [mm]: "+str(round(coil.traceWidth, 2)),
                                                                                     "clearance [mm]: "+str(round(coil.clearance, 2)),
+                                                                                    "oz copper: "+str(round(coil.ozCopper, 1)),
                                                                                     "layers: "+str(coil.layers),
-                                                                                    "layerSpacing [mm]: "+(str(round(coil.layerSpacing, 2)) if (coil.layers>1) else "(N/A)"),
+                                                                                    "PCBthickness [mm]: "+(str(round(coil.PCBthickness, 2)) if (coil.layers>1) else "(N/A)"),
                                                                                     "lenght (uncoiled) [mm]: "+str(round(coil.calcCoilTraceLength(), 2)),
                                                                                     "return trace length [mm]: "+str(round(coil.calcReturnTraceLength(), 2)),
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
@@ -349,7 +349,7 @@ class pygameDrawer():
         lineWidthPixels = int(coilToDraw.traceWidth * self.sizeScale)
         layerAdjust: Callable[[tuple[float,float],int], tuple[float,float]] = lambda pos, currentLayer : ((-1 if ((currentLayer%2)!=0) else 1) * pos[0], pos[1] + coilToDraw.diam*currentLayer) # mirror odd layers
         if((coilToDraw.layers%2)!=0): # only in case of an un-even number of layers
-            pygame.draw.line(self.windowHandler.window, self.layerColors[1], self.realToPixelPos((lineList[-1][0], lineList[0][1])), self.realToPixelPos(lineList[-1]), lineWidthPixels) # draw return line first
+            pygame.draw.line(self.windowHandler.window, self.layerColors[coilToDraw.layers % len(self.layerColors)], self.realToPixelPos((lineList[-1][0], lineList[0][1])), self.realToPixelPos(lineList[-1]), lineWidthPixels) # draw return trace first
         for layerItt in range(coilToDraw.layers):
             currentLayer = coilToDraw.layers-1-layerItt;  currentLayerColor = self.layerColors[currentLayer % len(self.layerColors)] # draw layers back to front
             for i in range(len(lineList)-1):

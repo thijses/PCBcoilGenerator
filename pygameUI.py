@@ -91,11 +91,16 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
         elif(key==pygame.K_g): # g for grid on/off toggle
             pygameDrawerInput.drawGrid = not pygameDrawerInput.drawGrid # toggle
         elif(key==pygame.K_s): # s for saving (TBD!)
+            saveStartTime = time.time()
             try:
-                saveStartTime = time.time()
-                ## file exporting code here
-                print("no file handler set yet, just doing nothing!")
-                print("file saving took", round(time.time()-saveStartTime, 2), "seconds")
+                if(pygameDrawerInput.localVar is not None):
+                    import DXFexporter as DXFexp
+                    for outputFormat in DXFexp.DXFoutputFormats:
+                        filenames = DXFexp.saveDXF(pygameDrawerInput.localVar, outputFormat)
+                        print("saved", outputFormat, "files:", filenames)
+                    print("file saving took", round(time.time()-saveStartTime, 2), "seconds")
+                else:
+                    print("failed to save file, localVar is", pygameDrawerInput.localVar)
             except Exception as excep:
                 print("failed to save file, exception:", excep)
         elif(key==pygame.K_t): # t
@@ -140,18 +145,24 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
                 if(pygameDrawerInput.localVar.clearance < 0.05):
                     pygameDrawerInput.localVar.clearance = 0.05
             
+            ## changing the thickness of the copper layers
+            elif((key==pygame.K_u) or (key==pygame.K_i)): # u or i
+                pygameDrawerInput.localVar.ozCopper += 0.5 * (1 if (key==pygame.K_i) else -1)
+                if(pygameDrawerInput.localVar.ozCopper < 0.5):
+                    pygameDrawerInput.localVar.ozCopper = 0.5
+            
             ## changing the number of layers (V1 only)
             elif((key==pygame.K_k) or (key==pygame.K_l)): # k or l
                 pygameDrawerInput.localVar.layers += 1 * (1 if (key==pygame.K_l) else -1)
                 if(pygameDrawerInput.localVar.layers < 1):
                     pygameDrawerInput.localVar.layers = 1
             
-            ## changing the spacing between the layers (V1 only)
+            ## changing the thickness of the PCB (V1 only)
             elif((key==pygame.K_m) or (key==pygame.K_COMMA)): # m or ,
                 if(pygameDrawerInput.localVar.layers > 1):
-                    pygameDrawerInput.localVar.layerSpacing += 0.01 * (1 if (key==pygame.K_COMMA) else -1)
-                    if(pygameDrawerInput.localVar.layerSpacing < 0.01):
-                        pygameDrawerInput.localVar.layerSpacing = 0.01
+                    pygameDrawerInput.localVar.PCBthickness += 0.2 * (1 if (key==pygame.K_COMMA) else -1)
+                    if(pygameDrawerInput.localVar.PCBthickness < 0.2):
+                        pygameDrawerInput.localVar.PCBthickness = 0.2
             
             ## changing the shape of the coil
             elif((key==pygame.K_9) or (key==pygame.K_0)): # 9 or 0

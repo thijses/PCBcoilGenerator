@@ -20,21 +20,27 @@ In EasyEDA you can make polygons, but you'd have to manually fill in a lot of va
 TODO list:
  - research ways of importing the results into PCB design software
  - improve pygame rendering (pygame struggles to draw thick lines like i want and the circle aren't helping much)
+ - add handy UI for entering parameters (text boxes???), because using the +- keys is a little slow (and has discrete resolution)
  - add an auto-optimizer (given a few limits (diameter, clearance, layers, layerSpacing) and targets (inductance, resistance, layers?), find the optimim coil design (minimizing for number of layers, resistance, etc.))
  - find a way to model rectangular/oval coils (non-square)
+ - add visual for (approximation of) the size of the magnetic field the coil exudes
+ - matplotlib (3D?)
 """
 
 
 import numpy as np
 from typing import Callable # just for type-hints to provide some nice syntax colering
+import time # used for time.sleep()
 
-visualization = True
+visualization = True # if you don't have pygame, you can still use the math
+saveToFile = True # if visualization == False! (if True, then just use 's' key)
 
-angleRenderResDefault = np.deg2rad(10) # angular resolution when rendering continous (circular) coils
-ozCopper = 1.0 # how many oz of copper the PCB has (on all layers, individual layer )
+angleRenderResDefault = np.deg2rad(5) # angular resolution when rendering continous (circular) coils
 
 ## scientific constants:
 magneticConstant = 4*np.pi * 10**-7 # Mu (greek) = Newtons / Ampere    (vacuum permeability???)
+ozCopperToMeters: Callable[[float],float] = lambda ozCopper : (34.8 * ozCopper  * 10**-6)
+RhoCopper = 1.72 * 10**-8 # Ohms * meter
 ## code constants
 distUnitMult = 1/1000 # all distance units are in mm, so to convert back to meters, multiply with this
 
@@ -247,7 +253,7 @@ def calcInductanceMultilayer(turns: int, diam: float, clearance: float, traceWid
     ##  i plotted that, just to see what the shape of this complicated 4th order polynomial really is: https://www.desmos.com/calculator/3k5o6fvvwe     turns out it's damn near a straight line!
     
     ## the formula for coupling factor between PCB coils (from paper[2]): # NOTE: this formula is intended for use with turns=5~20 and layerSpacing=0.75~2mm
-    couplingFactor: Callable[[float,float], float] = lambda turns, layerSpacingMM : ((turns**2)/((0.184*(layerSpacingMM**3)-0.525*(layerSpacingMM**2)+1.038*layerSpacingMM+1.001)*(1.67*(turns**2)-5.84*turns+65)*0.64)) # a macro for calculating the coupling factor Kc
+    couplingFactor: Callable[[float,float], float] = lambda turns, layerSpacingMM : ((turns**2)/((0.184*(layerSpacingMM**3)-0.525*(layerSpacingMM**2)+1.038*layerSpacingMM+1.001)*(1.67*(turns**2)-5.84*turns+65)*0.64)) # a macro for some math from paper[2]
     
     ## the formula for inductance (from paper[3]) (assuming i'm interpreting it correctly):
     mutualInductanceFact = 0.0 # note: this is alsmost mutual inductance, it just needs to be multiplied with singleInduct (which is done at the end)
@@ -258,13 +264,7 @@ def calcInductanceMultilayer(turns: int, diam: float, clearance: float, traceWid
 
 class coilClass:
     """ a class to hold the parameter set and rendered output of a coil """
-    ## some static class variables
-    RhoCopper = 1.72 * 10**-8 # Ohms * meter
-    topLayerHeight = 34.8 * ozCopper  * 10**-6 # 34.8um per oz (to meters)
-    topLayerResistConst = RhoCopper / topLayerHeight # turn into a single parameter to pass to the resistance calculation function. Not for human purposes, just for a shorter function call!
-    ## these are some constants from the paper (see top of code for link)
-    
-    def __init__(self, turns:int, diam:float, clearance:float, traceWidth:float, layers:int=1, layerSpacing:float=0.0, shape:_shapeTypeHint=shapes['square'], formula:str='cur_sheet', CCW:bool=False):
+    def __init__(self, turns:int, diam:float, clearance:float, traceWidth:float, layers:int=1, PCBthickness:float=1.6, ozCopper:float=1.0, shape:_shapeTypeHint=shapes['circle'], formula:str='cur_sheet', CCW:bool=False):
         ## the parameters of the coil are stored as local non-static class variables:
         self.turns = turns
         self.diam = diam
@@ -272,8 +272,9 @@ class coilClass:
         self.clearance = clearance
         self.traceWidth = traceWidth
         self.layers = layers
-        self.layerSpacing = layerSpacing # (only used if layers > 1) layerSpacing is calculated as: PCBthickness/(N-1) - copperThickness*(N-1) where N is the number of copper layers (e.g. 2, 4, 6)
-        if((layers>1) and (layerSpacing <= 0.0)):  raise(Exception("please set layerSpacing in coilClass constructor when layers>1"))
+        self.PCBthickness = PCBthickness # (only used if layers > 1) layerSpacing is calculated as: PCBthickness/(N-1) - copperThickness*(N-1) where N is the number of copper layers (e.g. 2, 4, 6)
+        self.ozCopper = ozCopper
+        # if((layers>1) and (PCBthickness <= 0.0)):  raise(Exception("please set PCBthickness in coilClass constructor when layers>1"))
         self.shape = (shape if issubclass(shape.__class__, _shapeTypeHint) else self.__init__.__defaults__[-2]) # determine if the desired shape string is in the formulaCoefficients dict
         if(self.shape.__class__ != shape.__class__):  print("coilClass init() changing shape from:", shape, "to", self.shape, "because it's not a _shapeTypeHint subclass")
         self.formula = (formula if (formula in self.shape.formulaCoefficients) else self.__init__.__defaults__[-1]) # determine if the desired formula string is in the formulaCoefficients dict
@@ -291,17 +292,18 @@ class coilClass:
     def calcTraceSpacing(self):  return(calcTraceSpacing(self.clearance, self.traceWidth))
     def calcReturnTraceLength(self):  return(calcReturnTraceLength(self.turns, self.clearance, self.traceWidth) if ((self.layers%2)!=0) else 0.0) # coils with an even number of layers don't need a return trace
     
-    def calcTotalResistance(self):  return(calcTotalResistance(self.turns, self.diam, self.clearance, self.traceWidth, self.layers, coilClass.topLayerResistConst, self.shape))
+    def calcTotalResistance(self):  return(calcTotalResistance(self.turns, self.diam, self.clearance, self.traceWidth, self.layers, RhoCopper / ozCopperToMeters(self.ozCopper), self.shape))
     def calcInductance(self):  return(calcInductance(self.turns, self.diam, self.clearance, self.traceWidth, self.shape, self.formula) if (self.layers == 1) else \
-                                      calcInductanceMultilayer(self.turns, self.diam, self.clearance, self.traceWidth, self.layers, self.layerSpacing, self.shape, self.formula))
+                                      calcInductanceMultilayer(self.turns, self.diam, self.clearance, self.traceWidth, self.layers, (self.PCBthickness/(self.layers-1))-(ozCopperToMeters(self.ozCopper)*(self.layers-1)), self.shape, self.formula))
     
     ## some ways of rendering the coil:
-    def renderAsCoordinateList(self, angleResOverride: float = None):
+    def renderAsCoordinateList(self, reverseDirection=False, angleResOverride: float = None):
         if(self.shape.isDiscrete):
-            return([self.shape.calcPos(i, self.diam, self.clearance, self.traceWidth, self.CCW) for i in range(self.shape.stepsPerTurn*self.turns + 1)]) # a simple forloop to render all the corner positions
+            if(angleResOverride is not None):  print("renderAsCoordinateList() ignoring angleResOverride, shape not circular")
+            return([self.shape.calcPos(i, self.diam, self.clearance, self.traceWidth, self.CCW ^ reverseDirection) for i in range(self.shape.stepsPerTurn*self.turns + 1)]) # a simple forloop to render all the corner positions
         else: # for continous shapes (e.g. circularSpiral)
             angleRes = (angleResOverride if (angleResOverride is not None) else angleRenderResDefault)
-            return([self.shape.calcPos(i*angleRes, self.diam, self.clearance, self.traceWidth, self.CCW) for i in range(int(round((self.shape.stepsPerTurn*self.turns)/angleRes, 0)) + 1)]) # renders the continous shape at a predetermined resolution
+            return([self.shape.calcPos(i*angleRes, self.diam, self.clearance, self.traceWidth, self.CCW ^ reverseDirection) for i in range(int(round((self.shape.stepsPerTurn*self.turns)/angleRes, 0)) + 1)]) # renders the continous shape
     # def renderAsPolygon(self):
     #     # TODO
 
@@ -309,7 +311,7 @@ class coilClass:
 if __name__ == "__main__": # normal usage
     try:
 
-        coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, layerSpacing=0.4, shape=shapes['circle'], formula='cur_sheet')
+        coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=0.6, ozCopper=1.0, shape=shapes['circle'], formula='cur_sheet')
         renderedLineList = coil.renderAsCoordinateList()
         
         if(visualization):
@@ -327,6 +329,7 @@ if __name__ == "__main__": # normal usage
 
             ## visualization loop:
             while(windowHandler.keepRunning):
+                loopStart = time.time()
                 drawer.renderBG() # draw background
 
                 drawer.drawLineList(renderedLineList)
@@ -341,12 +344,25 @@ if __name__ == "__main__": # normal usage
                     renderedLineList = coil.renderAsCoordinateList()
                     drawer.debugText = drawer.makeDebugText(coil)
 
-                    # debug for the calcLength() functions:
-                    from pygameRenderer import distAngleBetwPos
-                    sumOfLengths = 0
-                    for i in range(1, len(renderedLineList)):
-                        sumOfLengths += distAngleBetwPos(renderedLineList[i-1], renderedLineList[i])[0] # sum length manually
-                    print("sumOfLengths:", sumOfLengths)
+                    # # debug for the calcLength() functions:
+                    # from pygameRenderer import distAngleBetwPos
+                    # sumOfLengths = 0
+                    # for i in range(1, len(renderedLineList)):
+                    #     sumOfLengths += distAngleBetwPos(renderedLineList[i-1], renderedLineList[i])[0] # sum length manually
+                    # print("sumOfLengths:", sumOfLengths)
+                
+                loopEnd = time.time() #this is only for the 'framerate' limiter (time.sleep() doesn't accept negative numbers, this solves that)
+                targetFPS = 30
+                if((loopEnd-loopStart) < (1/(targetFPS*1.05))): #60FPS limiter (optional)
+                    time.sleep((1/targetFPS)-(loopEnd-loopStart))
+                # elif((loopEnd-loopStart) > (1/5)):
+                #     print("main process running slow", 1/(loopEnd-loopStart))
+        else: # no visualization
+            print("coil details:")
+            print("resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 3)))
+            print("inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 3)))
+            print("induct/resist [uH/Ohm]: "+str(round(coil.calcInductance() * 1000000 / coil.calcTotalResistance(), 3)))
+            print("induct/radius [uH/mm]: "+str(round(coil.calcInductance() * 1000000 / (coil.diam/2), 3)))
     finally:
         if(visualization):
             try:
