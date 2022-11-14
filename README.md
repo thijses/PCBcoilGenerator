@@ -1,6 +1,21 @@
 # PCBcoilGenerator
-a python-based PCB-coil (planar inductor) generator. Visualization in python using pygame
+a python-based PCB-coil (planar inductor) generator. Visualization in python using pygame. 
+V0 can generate basic 1-layer coils (with some deviation from the source material),
+V1 can generate multilayer coils (with parameters as described in the papers)
+The math comes from 3 papers:
+- [1] provides the math for single-layer coils
+- [3] provides the math for multilayer coils
+- [2] fills in the gaps left in [3]
+
+requirements:
+- python 3.10ish (tested with 3.10.8)
 libraries:
-- numpy
-- pygame (tested with 2.1.2, 2.0.2 should also be fine)
-- (TBD: dxg engine)
+- numpy (tested with 1.23.4)
+- pygame (tested with 3.10.8) (only for visualization)
+- dxfwrite (tested with 1.2.2) (only for DXF exporting)
+
+
+links to papers:
+paper[1] @ https://stanford.edu/~boyd/papers/pdf/inductance_expressions.pdf     which is applied for demo purposes @ https://coil32.net/pcb-coil.html
+paper[2] @ http://www.edatop.com/down/paper/NFC/A_new_calculation_for_designing_multilayer_planar_spiral_inductors_PDF.pdf
+paper[3] @ https://www.researchgate.net/publication/271291453_Design_and_Optimization_of_Printed_Circuit_Board_Inductors_for_Wireless_Power_Transfer_System
