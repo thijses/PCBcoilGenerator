@@ -18,7 +18,7 @@ In Altium there does not appear to be a way of importing a polygon, so it'll hav
 In EasyEDA you can make polygons, but you'd have to manually fill in a lot of values, so a series of line would also be fewer steps.
 
 TODO list:
- - research ways of importing the results into PCB design software
+ - add a more direct exporting method (footprint files or scripts): https://www.google.com/search?q=easyEDA+scripting
  - improve pygame rendering (pygame struggles to draw thick lines like i want and the circle aren't helping much)
  - add handy UI for entering parameters (text boxes???), because using the +- keys is a little slow (and has discrete resolution)
  - add an auto-optimizer (given a few limits (diameter, clearance, layers, layerSpacing) and targets (inductance, resistance, layers?), find the optimim coil design (minimizing for number of layers, resistance, etc.))
@@ -36,10 +36,12 @@ visualization = True # if you don't have pygame, you can still use the math
 saveToFile = True # if visualization == False! (if True, then just use 's' key)
 
 angleRenderResDefault = np.deg2rad(5) # angular resolution when rendering continous (circular) coils
+rotateNthDimSpirals = True
 
 ## scientific constants:
-magneticConstant = 4*np.pi * 10**-7 # Mu (greek) = Newtons / Ampere    (vacuum permeability???)
+magneticConstant = 4*np.pi * 10**-7 # Mu_0 = Newtons / Ampere    (vacuum permeability???)
 ozCopperToMeters: Callable[[float],float] = lambda ozCopper : (34.8 * ozCopper  * 10**-6)
+umCopperToOz: Callable[[float],float] = lambda umCopper : (umCopper / 34.8) # just in case you know the exact height in micrometers
 RhoCopper = 1.72 * 10**-8 # Ohms * meter
 ## code constants
 distUnitMult = 1/1000 # all distance units are in mm, so to convert back to meters, multiply with this
@@ -117,7 +119,7 @@ class NthDimSpiral(_shapeTypeHint): # a general class for Nth dimensional polygo
         spacing = calcTraceSpacing(subclass.circumDiam(clearance), subclass.circumDiam(traceWidth))
         angle = itt*np.deg2rad(360/subclass.stepsPerTurn)
         circumscribedDiam = subclass.circumDiam(diam-traceWidth)
-        phaseShift = np.deg2rad(180/subclass.stepsPerTurn)
+        phaseShift = (np.deg2rad(180/subclass.stepsPerTurn) if rotateNthDimSpirals else 0.0)
         x = (1 if CCW else -1) * np.sin(angle+phaseShift) * ((circumscribedDiam/2) - ((angle/(2*np.pi)) * spacing))
         y =         -1         * np.cos(angle+phaseShift) * ((circumscribedDiam/2) - ((angle/(2*np.pi)) * spacing))
         return(x,y)
@@ -199,7 +201,7 @@ def calcTraceSpacing(clearance: float, traceWidth: float) -> float: # does not r
 def calcCoilTraceResistance(turns: int, diam: float, clearance: float, traceWidth: float, resistConst: float, shape: _shapeTypeHint) -> float:
     """ calculate the resistance of the coil in Ohms (single layer, return trace ignored)"""
     coilLength = shape.calcLength(shape.stepsPerTurn*turns, diam, clearance, traceWidth) * distUnitMult # calculate the length of the coil itself (with 1 nice direct calculation (not iteration)) in meters
-    coilResistance = resistConst * (coilLength / (traceWidth*distUnitMult)) # resistance = Rho * length / diam * width = resistConst * length/diam = resistance in ohms (all dist units in meters!)
+    coilResistance = resistConst * (coilLength / (traceWidth*distUnitMult)) # resistance = Rho * length / height * width = resistConst * length/width = resistance in ohms (all dist units in meters!)
     return(coilResistance)
 
 def calcTotalResistance(turns: int, diam: float, clearance: float, traceWidth: float, layers: int, resistConst: float, shape: _shapeTypeHint) -> float:
@@ -311,7 +313,8 @@ class coilClass:
 if __name__ == "__main__": # normal usage
     try:
 
-        coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=0.6, ozCopper=1.0, shape=shapes['circle'], formula='cur_sheet')
+        # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=0.6, ozCopper=1.0, shape=shapes['circle'], formula='cur_sheet')
+        coil = coilClass(turns=9, diam=40, clearance=0.30, traceWidth=1.0, layers=1,                   ozCopper=umCopperToOz(30.0), shape=shapes['hexagon'], formula='cur_sheet')
         renderedLineList = coil.renderAsCoordinateList()
         
         if(visualization):
@@ -319,13 +322,13 @@ if __name__ == "__main__": # normal usage
             import pygameUI as UI # UI handling code
 
             ## some UI window initialization
-            resolution = [1280, 720]
-            windowHandler = PR.pygameWindowHandler(resolution)
-            drawer = PR.pygameDrawer(windowHandler, resolution)
+            windowHandler = PR.pygameWindowHandler([1280, 720])
+            drawer = PR.pygameDrawer(windowHandler)
             
             drawer.localVar = coil # not my best code...
             drawer.localVarUpdated = False # a flag for the UI to trigger a re-calculation
             drawer.debugText = drawer.makeDebugText(coil)
+            import DXFexporter as DXFexp;   drawer.lastFilename = DXFexp.generateCoilFilename(coil)
 
             ## visualization loop:
             while(windowHandler.keepRunning):
@@ -343,6 +346,7 @@ if __name__ == "__main__": # normal usage
                     coil = drawer.localVar
                     renderedLineList = coil.renderAsCoordinateList()
                     drawer.debugText = drawer.makeDebugText(coil)
+                    import DXFexporter as DXFexp;   drawer.lastFilename = DXFexp.generateCoilFilename(coil)
 
                     # # debug for the calcLength() functions:
                     # from pygameRenderer import distAngleBetwPos
@@ -366,7 +370,7 @@ if __name__ == "__main__": # normal usage
     finally:
         if(visualization):
             try:
-                windowHandler.pygameEnd() # correctly shut down pygame window
+                windowHandler.end() # correctly shut down pygame window
                 print("stopped pygame window")
             except:
-                print("couldn't run pygameEnd()")
+                print("couldn't run windowHandler.end()")

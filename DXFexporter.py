@@ -31,7 +31,7 @@ from PCBcoilV1 import coilClass, shapes # mostly just used for type-hints
 DXFoutputFormats: list[str] = ['EasyEDA', 'Altium']
 
 
-def generateCoilFilename(coil: coilClass):
+def generateCoilFilename(coil: coilClass) -> str:
     filename = coil.shape.__class__.__name__[0:2]   # shape (first 2 letters)
     filename += '_di'+str(int(round(coil.diam, 0)))  # diam (int)
     filename += '_tu'+str(coil.turns)                # turns
@@ -54,7 +54,7 @@ def EasyEDAlayerName(layer:int=0, totalLayers:int=2) -> str:
     else: # if its an inner layer
         return('Inner'+str(layer)) # e.g. 'Inner1', 'Inner2' for a 4-layer PCB
 
-def saveDXF(coil: coilClass, DXFoutputFormat: str):
+def saveDXF(coil: coilClass, DXFoutputFormat: str) -> list[str]:
     """ generates and saves a .dxf file to be imported in the software of your choosing (DXFoutputFormat)
         returns: a list of the names of the files it made """
     filenames: list[str] = []

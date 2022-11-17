@@ -279,7 +279,7 @@ if __name__ == "__main__": # normal usage
     finally:
         if(visualization):
             try:
-                windowHandler.pygameEnd() # correctly shut down pygame window
+                windowHandler.end() # correctly shut down pygame window
                 print("stopped pygame window")
             except:
-                print("couldn't run pygameEnd()")
+                print("couldn't run windowHandler.end()")

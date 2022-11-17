@@ -49,15 +49,15 @@ class pygameWindowHandler():
         self.keepRunning = True
 
     def __del__(self):
-        self.pygameEnd()
+        self.end()
 
-    def pygameEnd(self):
+    def end(self):
         """deinitialize the pygame window (required for ending without crashing)"""
         if(self.windowStarted): #if the window never started, quit might error out or something stupid
             print("quitting pygame window...")
             pygame.quit()
             self.keepRunning = False # should already have been done, but just to be sure
-            self.windowStarted = False # just in case pygameEnd is called multiple times
+            self.windowStarted = False # just in case end() is called multiple times
 
     def frameRefresh(self):
         """push the drawn frame(buffer) to the display"""
@@ -72,13 +72,13 @@ class pygameWindowHandler():
 
 
 class pygameDrawer():
-    def __init__(self, windowHandler: pygameWindowHandler, drawSize=(1200,600), drawOffset=(0,0), sizeScale=15, invertYaxis=True):
+    def __init__(self, windowHandler: pygameWindowHandler, drawSize:tuple[int,int]=None, drawOffset:tuple[int,int]=(0,0), sizeScale:float=15, invertYaxis:bool=True):
         self.windowHandler = windowHandler
-        self.drawSize = (int(drawSize[0]),int(drawSize[1])) #width and height of the display area (does not have to be 100% of the window)
-        self.drawOffset = (int(drawOffset[0]), int(drawOffset[1])) #draw position offset, (0,0) is topleft
-        self.viewOffset = [0.0, 0.0] #'camera' view offsets, changing this affects the real part of realToPixelPos()
-        self.sizeScale = sizeScale #pixels per meter
-        self.invertYaxis = invertYaxis #pygame has pixel(0,0) in the topleft, so this just flips the y-axis when drawing things
+        self.drawSize :tuple[int,int]= ((int(drawSize[0]),int(drawSize[1])) if (drawSize is not None) else self.windowHandler.oldWindowSize) # width and height of the display area (does not need to be 100% of the window)
+        self.drawOffset :tuple[int,int]= (int(drawOffset[0]), int(drawOffset[1])) #draw position offset, (0,0) is topleft
+        self.viewOffset :list[float,float]= [0.0, 0.0] #'camera' view offsets, changing this affects the real part of realToPixelPos()
+        self.sizeScale :float= sizeScale #pixels per meter
+        self.invertYaxis :bool= invertYaxis #pygame has pixel(0,0) in the topleft, so this just flips the y-axis when drawing things
 
         self.minSizeScale = 5.0 # note: the unit for sizeScale is pixels per millimeter, so there's no need to make this too small
         self.maxSizeScale = 2000.0 # a reasonable limit to how much you can zoom in
@@ -127,7 +127,8 @@ class pygameDrawer():
         self.drawGrid = True #a simple grid to help make clear how big units of measurement are. (TBD in 3D rendering mode!)
         
         try:
-            self.viewOffset = [((self.drawSize[0]/self.sizeScale)/2), ((self.drawSize[1]/self.sizeScale)/2)] # center view on (0.0,0.0) coordinate
+            # self.viewOffset = [((self.drawSize[0]/self.sizeScale)/2), ((self.drawSize[1]/self.sizeScale)/2)] # center view on (0.0,0.0) coordinate
+            self.viewOffset = [(2*(self.drawSize[0]/self.sizeScale)/3), ((self.drawSize[1]/self.sizeScale)/2)] # put (0.0,0.0) coordinate at 2/3 to the right of the screen
             # self.viewOffset = # TBD: center view on thing
             # self.sizeScale = # TBD: show whole thing
         except Exception as theExcept:
@@ -137,7 +138,7 @@ class pygameDrawer():
         self.localVar = None # a terrible hack to get python pointers
         self.localVarUpdated = False # a flag for UI interactions to set
         self.debugText: dict[str,list[str]] = None # a list of some text to display
-        self.debugTextKey: str = "" # when no key is selected, default to empty string
+        self.debugTextKey: str = 'few' # when no key is selected, default to empty string
         self.makeDebugText: Callable[[object], dict[str,list[str]]] = lambda coil:{     'few' : [
                                                                                     "diam [mm]: "+str(round(coil.diam, 1)),
                                                                                     "shape: "+coil.shape.__class__.__name__,
@@ -146,7 +147,7 @@ class pygameDrawer():
                                                                                     "clearance [mm]: "+str(round(coil.clearance, 2)),
                                                                                     "oz copper: "+str(round(coil.ozCopper, 1)),
                                                                                     "layers: "+str(coil.layers),
-                                                                                    "PCBthickness [mm]: "+(str(round(coil.PCBthickness, 2)) if (coil.layers>1) else "(N/A)"),
+                                                                                    (("PCBthickness [mm]: "+str(round(coil.PCBthickness, 2))) if (coil.layers>1) else ""),
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
                                                                                     "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 2)),
                                                                                     "induct/resist [uH/Ohm]: "+str(round(coil.calcInductance() * 1000000 / coil.calcTotalResistance(), 2)),
@@ -164,7 +165,7 @@ class pygameDrawer():
                                                                                     "clearance [mm]: "+str(round(coil.clearance, 2)),
                                                                                     "oz copper: "+str(round(coil.ozCopper, 1)),
                                                                                     "layers: "+str(coil.layers),
-                                                                                    "PCBthickness [mm]: "+(str(round(coil.PCBthickness, 2)) if (coil.layers>1) else "(N/A)"),
+                                                                                    (("PCBthickness [mm]: "+str(round(coil.PCBthickness, 2))) if (coil.layers>1) else ""),
                                                                                     "lenght (uncoiled) [mm]: "+str(round(coil.calcCoilTraceLength(), 2)),
                                                                                     "return trace length [mm]: "+str(round(coil.calcReturnTraceLength(), 2)),
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
@@ -224,8 +225,8 @@ class pygameDrawer():
             statsToShow = [] # a list of strings
             # statsToShow.append(str(round(self.sizeScale, 2)))
             if((self.debugTextKey in self.debugText) if (self.debugText is not None) else False):
-                for entry in self.debugText[self.debugTextKey]:
-                    statsToShow.append(entry)
+                [statsToShow.append(entry) for entry in self.debugText[self.debugTextKey] if (entry != "")]
+                    
             self.statRenderedFonts = [] # a list of rendered fonts (images)
             for textStr in statsToShow:
                 self.statRenderedFonts.append(self.normalFont.render(textStr, False, self.normalFontColor))
@@ -421,7 +422,7 @@ if __name__ == "__main__": # an example of how this file may be used
             UI.handleAllWindowEvents(drawer) #handle all window events like key/mouse presses, quitting and most other things
     finally:
         try:
-            windowHandler.pygameEnd() # correctly shut down pygame window
+            windowHandler.end() # correctly shut down pygame window
             print("drawer stopping done")
         except:
-            print("couldn't run pygameEnd()")
+            print("couldn't run windowHandler.end()")

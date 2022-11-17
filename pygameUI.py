@@ -98,6 +98,9 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
                     for outputFormat in DXFexp.DXFoutputFormats:
                         filenames = DXFexp.saveDXF(pygameDrawerInput.localVar, outputFormat)
                         print("saved", outputFormat, "files:", filenames)
+                        # pygameDrawerInput.lastFilename = DXFexp.generateCoilFilename(pygameDrawerInput.localVar)
+                        if(len(filenames) > 0):
+                            pygameDrawerInput.lastFilename = filenames[0]
                     print("file saving took", round(time.time()-saveStartTime, 2), "seconds")
                 else:
                     print("failed to save file, localVar is", pygameDrawerInput.localVar)
