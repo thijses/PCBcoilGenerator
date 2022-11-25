@@ -94,13 +94,21 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
             saveStartTime = time.time()
             try:
                 if(pygameDrawerInput.localVar is not None):
-                    import DXFexporter as DXFexp
-                    for outputFormat in DXFexp.DXFoutputFormats:
-                        filenames = DXFexp.saveDXF(pygameDrawerInput.localVar, outputFormat)
-                        print("saved", outputFormat, "files:", filenames)
-                        # pygameDrawerInput.lastFilename = DXFexp.generateCoilFilename(pygameDrawerInput.localVar)
-                        if(len(filenames) > 0):
-                            pygameDrawerInput.lastFilename = filenames[0]
+                    from __main__ import __file__ as mainFileName
+                    PCBcoilVersion: str = mainFileName[mainFileName.rfind('V')+1:mainFileName.rfind('.')]
+                    PCBcoilVersion: int = int(PCBcoilVersion)
+                    if(PCBcoilVersion >= 2):
+                        pygameDrawerInput.localVar.saveDXF()
+                        pygameDrawerInput.localVar.to_excel()
+                        pygameDrawerInput.lastFilename = pygameDrawerInput.localVar.generateCoilFilename()
+                    else: # fallback to <V2 functionality
+                        import DXFexporter as DXFexp
+                        for outputFormat in DXFexp.DXFoutputFormats:
+                            filenames = DXFexp.saveDXF(pygameDrawerInput.localVar, outputFormat)
+                            print("saved", outputFormat, "files:", filenames)
+                            # pygameDrawerInput.lastFilename = DXFexp.generateCoilFilename(pygameDrawerInput.localVar)
+                            if(len(filenames) > 0):
+                                pygameDrawerInput.lastFilename = filenames[0]
                     print("file saving took", round(time.time()-saveStartTime, 2), "seconds")
                 else:
                     print("failed to save file, localVar is", pygameDrawerInput.localVar)
@@ -125,14 +133,15 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
         if(pygameDrawerInput.localVar is not None): # coil adjustment though UI requires a little bit of synchronization effor (also, python doesnt do pointers)
 
             ## changing the number of turns
-            if((key==pygame.K_MINUS) or (key==pygame.K_EQUALS)): # - or =
+            if((key==pygame.K_MINUS) or (key==pygame.K_EQUALS)): # - or =(+)
                 pygameDrawerInput.localVar.turns += 1 * (1 if (key==pygame.K_EQUALS) else -1)
                 if(pygameDrawerInput.localVar.turns < 1):
                     pygameDrawerInput.localVar.turns = 1
             
             ## changing the (outer) diameter
             elif((key==pygame.K_LEFTBRACKET) or (key==pygame.K_RIGHTBRACKET)): # [ or ]
-                pygameDrawerInput.localVar.diam += 1 * (1 if (key==pygame.K_RIGHTBRACKET) else -1)
+                increment = (10 if pygame.key.get_pressed()[pygame.K_LSHIFT] else 1) # increment with 1m or 10mm, depending on whether you're holding shift
+                pygameDrawerInput.localVar.diam += increment * (1 if (key==pygame.K_RIGHTBRACKET) else -1)
                 if(pygameDrawerInput.localVar.diam < 1):
                     pygameDrawerInput.localVar.diam = 1
                     
@@ -150,9 +159,10 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
             
             ## changing the thickness of the copper layers
             elif((key==pygame.K_u) or (key==pygame.K_i)): # u or i
-                pygameDrawerInput.localVar.ozCopper += 0.5 * (1 if (key==pygame.K_i) else -1)
-                if(pygameDrawerInput.localVar.ozCopper < 0.5):
-                    pygameDrawerInput.localVar.ozCopper = 0.5
+                increment = (0.0348 if pygame.key.get_pressed()[pygame.K_LSHIFT] else 0.001) # increment with 1um or 1oz, depending on whether you're holding shift
+                pygameDrawerInput.localVar.copperThickness += increment * (1 if (key==pygame.K_i) else -1)
+                if(pygameDrawerInput.localVar.copperThickness < 0.001):
+                    pygameDrawerInput.localVar.copperThickness = 0.001
             
             ## changing the number of layers (V1 only)
             elif((key==pygame.K_k) or (key==pygame.K_l)): # k or l

@@ -5,6 +5,8 @@ this file servers to convert a generated coil into DXF format for use with:
 
 this code owes its existance to DXFEngine   https://pypi.org/project/dxfwrite/
 
+NOTE: i have aspired to make this code usable from any version of PCBcoilV_, but i have not actually bothered to check whether it will.
+
 
 in EasyEDA:
 importing DXFs is easy, but limited:
@@ -26,21 +28,23 @@ TODO:
 
 from dxfwrite import DXFEngine as dxf
 from typing import Callable # just for type-hints to provide some nice syntax colering
-from PCBcoilV1 import coilClass, shapes # mostly just used for type-hints
 
 DXFoutputFormats: list[str] = ['EasyEDA', 'Altium']
 
-
-def generateCoilFilename(coil: coilClass) -> str:
+## NOTE: the following function has been moved to PCBcoilV_ (V2 onwards)
+def generateCoilFilename(coil: 'coilClass') -> str:
+    """ DEPRICATED, use the function by the same name in PCBcoilV_ from V2 onwards """
     filename = coil.shape.__class__.__name__[0:2]   # shape (first 2 letters)
-    filename += '_di'+str(int(round(coil.diam, 0)))  # diam (int)
+    filename += '_di'+str(int(round(coil.diam, 0)))  # diam (millimeters)
     filename += '_tu'+str(coil.turns)                # turns
     filename += '_wi'+str(int(round(coil.traceWidth * 1000, 0))) # traceWidth (micrometers)
     filename += '_cl'+str(int(round(coil.clearance * 1000, 0)))  # clearance (micrometers)
-    filename += '_oz'+str(int(round(coil.ozCopper * 10, 0)))  # oz copper thickness (*10)
+    ## the following values are (more) dependent on the production process, and should be verified or ignored:
+    filename += '_cT'+str(int(round(coil.copperThickness * 1000, 0)))  # copper thickness (micrometers)
     if(coil.layers > 1):
         filename += '_La'+str(coil.layers)               # Layers
         filename += '_Pt'+str(int(round(coil.PCBthickness * 1000, 0)))  # PCBthickness (micrometers)
+    ## the following values are only valid if the previous (production-dependent ones) hold true. If not, these should be ignored:
     filename += '_Re'+str(int(round(coil.calcTotalResistance() * 1000, 0))) # Resistance (milliOhms) (assuming nothing changes!)
     filename += '_In'+str(int(round(coil.calcInductance() * 1000000000, 0)))  # Inductance (nanoHenry) (assuming nothing changes!)
     return(filename)
@@ -54,14 +58,18 @@ def EasyEDAlayerName(layer:int=0, totalLayers:int=2) -> str:
     else: # if its an inner layer
         return('Inner'+str(layer)) # e.g. 'Inner1', 'Inner2' for a 4-layer PCB
 
-def saveDXF(coil: coilClass, DXFoutputFormat: str) -> list[str]:
+def saveDXF(coil: 'coilClass', DXFoutputFormat: str) -> list[str]:
     """ generates and saves a .dxf file to be imported in the software of your choosing (DXFoutputFormat)
         returns: a list of the names of the files it made """
     filenames: list[str] = []
     if(DXFoutputFormat not in DXFoutputFormats):  print("makeDXF() output format:", DXFoutputFormat, " not in list:", DXFoutputFormats);  return(filenames)
     if(DXFoutputFormat == DXFoutputFormats[0]): # EasyEDA
         renderedCoils: list[list[tuple[float,float]]] = [coil.renderAsCoordinateList(False), coil.renderAsCoordinateList(True)]
-        filenames: list[str] = [generateCoilFilename(coil)+'_'  for i in range(min(coil.layers, 2))]
+        try: # the code should not hang on something so trivial as a filename
+            filenames: list[str] = [(DXFoutputFormat+'_'+coil.generateCoilFilename()+'_')  for i in range(min(coil.layers, 2))] # from PCBcoilV2 onwards, this is the proper way to do it
+        except:
+            print("warning!: using depricated filename function (because coil.generateCoilFilename failed). Names may be inconsistant!")
+            filenames: list[str] = [(DXFoutputFormat+'_'+generateCoilFilename(coil)+'_')  for i in range(min(coil.layers, 2))] # fall back to depricated file system for PCBcoilV1
         for i in range(coil.layers):   filenames[i%2] += '_'+EasyEDAlayerName(i, coil.layers) # e.g. "(coilNamePrefix)__TopLayer_Inner2" and "(coilNamePrefix)__Inner1_BottomLayer" for a 4 layer PCB
         for i in range(len(filenames)):   filenames[i] += '.dxf' # add extensions
         # dxfFiles = [dxf.drawing(filename) for filename in filenames] # initialize files (done in forloop instead)
@@ -103,7 +111,8 @@ if __name__ == "__main__": # an example of how this file may be used
     #     drawing.add(dxf.line((0, 0), (table[i%4], table[(i+1)%4]), layer=EasyEDAlayerName(i, N)))
     # drawing.save()
 
-    coil = coilClass(9,40,0.15,0.9,2,0.6,1.0,shapes['circle'])
+    from PCBcoilV2 import coilClass, shapes, ozCopperToMM # mostly just used for type-hints
+    coil = coilClass(9,40,0.15,0.9,2,0.6,ozCopperToMM(1),shapes['circle'])
     for outputFormat in DXFoutputFormats:
         filenames = saveDXF(coil, outputFormat)
         print("saved", outputFormat, "files:", filenames)

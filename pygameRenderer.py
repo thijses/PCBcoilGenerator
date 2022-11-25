@@ -139,13 +139,14 @@ class pygameDrawer():
         self.localVarUpdated = False # a flag for UI interactions to set
         self.debugText: dict[str,list[str]] = None # a list of some text to display
         self.debugTextKey: str = 'few' # when no key is selected, default to empty string
+        from __main__ import mmCopperToOz # bad
         self.makeDebugText: Callable[[object], dict[str,list[str]]] = lambda coil:{     'few' : [
                                                                                     "diam [mm]: "+str(round(coil.diam, 1)),
                                                                                     "shape: "+coil.shape.__class__.__name__,
                                                                                     "turns: "+str(coil.turns),
                                                                                     "traceWidth [mm]: "+str(round(coil.traceWidth, 2)),
                                                                                     "clearance [mm]: "+str(round(coil.clearance, 2)),
-                                                                                    "oz copper: "+str(round(coil.ozCopper, 1)),
+                                                                                    "um copper: "+str(round(coil.copperThickness * 1000, 1)),
                                                                                     "layers: "+str(coil.layers),
                                                                                     (("PCBthickness [mm]: "+str(round(coil.PCBthickness, 2))) if (coil.layers>1) else ""),
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
@@ -163,13 +164,16 @@ class pygameDrawer():
                                                                                     "turns: "+str(coil.turns),
                                                                                     "traceWidth [mm]: "+str(round(coil.traceWidth, 2)),
                                                                                     "clearance [mm]: "+str(round(coil.clearance, 2)),
-                                                                                    "oz copper: "+str(round(coil.ozCopper, 1)),
+                                                                                    "um copper: "+str(round(coil.copperThickness * 1000, 1)),
+                                                                                    "oz copper: "+str(round(mmCopperToOz(coil.copperThickness), 1)),
                                                                                     "layers: "+str(coil.layers),
                                                                                     (("PCBthickness [mm]: "+str(round(coil.PCBthickness, 2))) if (coil.layers>1) else ""),
+                                                                                    (("layer spacing [mm]: "+str(round(coil.calcLayerSpacing(), 2))) if (coil.layers>1) else ""),
                                                                                     "lenght (uncoiled) [mm]: "+str(round(coil.calcCoilTraceLength(), 2)),
                                                                                     "return trace length [mm]: "+str(round(coil.calcReturnTraceLength(), 2)),
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
-                                                                                    "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 2)),
+                                                                                    "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 3)),
+                                                                                    (("inductance 1-layer [uH]: "+str(round(coil.calcInductanceSingleLayer() * 1000000, 3))) if (coil.layers>1) else ""),
                                                                                     "induct/resist [uH/Ohm]: "+str(round(coil.calcInductance() * 1000000 / coil.calcTotalResistance(), 2)),
                                                                                     "induct/radius [uH/mm]: "+str(round(coil.calcInductance() * 1000000 / (coil.diam/2), 2)) ] }
         
@@ -409,20 +413,20 @@ class pygameDrawer():
 
 
 
-if __name__ == "__main__": # an example of how this file may be used
-    try:
-        import pygameUI as UI
-        resolution = [1280, 720]
-        windowHandler = pygameWindowHandler(resolution)
-        drawer = pygameDrawer(windowHandler, resolution) # only 1 renderer in the window
-        ## NOTE: by using the drawSize and drawOffset parameters, multiple pygameDrawer objects can use the same window (or simple picture-in-picture). The UI code may get more complicated though
-        while(windowHandler.keepRunning):
-            drawer.redraw()
-            windowHandler.frameRefresh()
-            UI.handleAllWindowEvents(drawer) #handle all window events like key/mouse presses, quitting and most other things
-    finally:
-        try:
-            windowHandler.end() # correctly shut down pygame window
-            print("drawer stopping done")
-        except:
-            print("couldn't run windowHandler.end()")
+# if __name__ == "__main__": # an example of how this file may be used
+#     try:
+#         import pygameUI as UI
+#         resolution = [1280, 720]
+#         windowHandler = pygameWindowHandler(resolution)
+#         drawer = pygameDrawer(windowHandler, resolution) # only 1 renderer in the window
+#         ## NOTE: by using the drawSize and drawOffset parameters, multiple pygameDrawer objects can use the same window (or simple picture-in-picture). The UI code may get more complicated though
+#         while(windowHandler.keepRunning):
+#             drawer.redraw()
+#             windowHandler.frameRefresh()
+#             UI.handleAllWindowEvents(drawer) #handle all window events like key/mouse presses, quitting and most other things
+#     finally:
+#         try:
+#             windowHandler.end() # correctly shut down pygame window
+#             print("drawer stopping done")
+#         except:
+#             print("couldn't run windowHandler.end()")
