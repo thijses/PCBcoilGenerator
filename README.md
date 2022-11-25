@@ -11,8 +11,9 @@ requirements:
 - python 3.10ish (tested with 3.10.8)
 libraries:
 - numpy (tested with 1.23.4)
-- pygame (tested with 3.10.8) (only needed for visualization)
+- pygame (tested with 3.10.8) (only needed for visualization) (CV2 version is on TODO list)
 - dxfwrite (tested with 1.2.2) (only needed for DXF exporting)
+- pandas (tested with 1.5.2) and openpyxl (tested with 3.0.10) (only needed for excel exporting) (non-pandas version is on TODO list)
 
 
 links to papers:
