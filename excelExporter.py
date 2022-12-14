@@ -3,8 +3,6 @@ import pandas as pd # used to make nice-looking excel files (alternatively, just
 ## NOTE: installing pandas ('pip install pandas') may also require installing openpyxl ('pip install openpyxl') to get full the .to_excel() function to work
 
 
-import DXFexporter as DXFexp
-
 fileExtension = ".xlsx" # for pandas DataFrame output
 
 def exportCoils(coilList: list['coilClass'], filename: str) -> bool: # i wanted to avoid importing any one version of PCBcoilV_, so this type hint is mostly useless
@@ -24,7 +22,7 @@ def exportCoils(coilList: list['coilClass'], filename: str) -> bool: # i wanted 
                                     'Predicted Inductance [uH]' : [(coil.calcInductance()*1000000) for coil in coilList],
                                     'Predicted Inductance single-layer [uH]' : [(coil.calcInductanceSingleLayer()*1000000) for coil in coilList],
                                     'formula used' : [coil.formula for coil in coilList],
-                                    'general filename' : [DXFexp.generateCoilFilename(coil) for coil in coilList]})
+                                    'general filename' : [coil.generateCoilFilename() for coil in coilList]})
     try:
         if(not filename.endswith(fileExtension)):
             filename += fileExtension
@@ -49,34 +47,56 @@ if __name__ == "__main__": # normal usage
     PCBthickness4layer = 0.8
     formula = 'cur_sheet'
     ## single-layer on PA:
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthicknessPA    , copperThickness=PAcopperThickness, shape=PC.shapes['square'], formula=formula))
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthicknessPA    , copperThickness=PAcopperThickness, shape=PC.shapes['circle'], formula=formula))
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.30, traceWidth=1.0, layers=1, PCBthickness=PCBthicknessPA    , copperThickness=PAcopperThickness, shape=PC.shapes['hexagon'], formula=formula))
-    ## 2-layer PCB (JLC)
-    # 1 layer
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
-    # (default)
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
-    # fewer turns
-    coilList.append(PC.coilClass(turns=6, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
-    coilList.append(PC.coilClass(turns=6, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
-    # thicker trace
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.2, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.2, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
-    # more clearance
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.30, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.30, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
-    # smaller diam
-    coilList.append(PC.coilClass(turns=9, diam=30, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
-    coilList.append(PC.coilClass(turns=9, diam=30, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
-    ## 4-layer PCB (JLC)
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=3, PCBthickness=0.6               , copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # 3 layer
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=PCBthickness4layer, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # (defualt)
-    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=PCBthickness4layer, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['square'], formula=formula)) # square
-    coilList.append(PC.coilClass(turns=6, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=PCBthickness4layer, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # fewer turns
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthicknessPA    , copperThickness=PAcopperThickness, shape=PC.shapes['square'], formula=formula))
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthicknessPA    , copperThickness=PAcopperThickness, shape=PC.shapes['circle'], formula=formula))
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.30, traceWidth=1.0, layers=1, PCBthickness=PCBthicknessPA    , copperThickness=PAcopperThickness, shape=PC.shapes['hexagon'], formula=formula))
+    # ## 2-layer PCB (JLC)
+    # # 1 layer
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=1, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    # # (default)
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    # # fewer turns
+    # coilList.append(PC.coilClass(turns=6, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    # coilList.append(PC.coilClass(turns=6, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    # # thicker trace
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.2, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.2, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    # # more clearance
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.30, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.30, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    # # smaller diam
+    # coilList.append(PC.coilClass(turns=9, diam=30, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    # coilList.append(PC.coilClass(turns=9, diam=30, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    # ## 4-layer PCB (JLC)
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=3, PCBthickness=(2/3)*PCBthickness4layer, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # 3 layer
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=PCBthickness4layer, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # (defualt)
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=PCBthickness4layer, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['square'], formula=formula)) # square
+    # coilList.append(PC.coilClass(turns=6, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=PCBthickness4layer, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # fewer turns
     
+    ## turns test PCB:
+    # circular (5~14, (6 and 9 are already done))
+    coilList.append(PC.coilClass(turns=5, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    coilList.append(PC.coilClass(turns=7, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    coilList.append(PC.coilClass(turns=8, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    coilList.append(PC.coilClass(turns=10, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    coilList.append(PC.coilClass(turns=11, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    coilList.append(PC.coilClass(turns=12, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    coilList.append(PC.coilClass(turns=13, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    coilList.append(PC.coilClass(turns=14, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['circle'], formula=formula))
+    # square ([5, 8, 11, 14] (6 and 9 are already done))
+    coilList.append(PC.coilClass(turns=5, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    coilList.append(PC.coilClass(turns=8, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    coilList.append(PC.coilClass(turns=11, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    coilList.append(PC.coilClass(turns=14, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=PCBthickness2layer, copperThickness=JLCcopperThickness2layer, shape=PC.shapes['square'], formula=formula))
+    ## spacing test PCB:
+    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=0.8, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # top-bot
+    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=(1/3)*0.8, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # top-in1 & in1-in2
+    coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=(2/3)*0.8, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # top-in2
+    # coilList.append(PC.coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=3, PCBthickness=varies, copperThickness=JLCcopperThickness4layer, shape=PC.shapes['circle'], formula=formula)) # top-in1-bot
+    
+
     # shapeList = (PC.shapes['square'], PC.shapes['circle']) # to fetch all shapes, use: [PC.shapes[key] for key in PC.shapes]
     # layerList = (1,2,3,4)
     # turnsList = (6,9)
@@ -99,4 +119,4 @@ if __name__ == "__main__": # normal usage
     #                                     coilList.append(PC.coilClass(turns=turns, diam=diam, clearance=clearance, traceWidth=traceWidth, layers=layers, \
     #                                                                     PCBthickness=PCBthickness, copperThickness=copperThickness, shape=shape, formula=formula))
             
-    exportCoils(coilList) # now export to an excel file
+    exportCoils(coilList, filename) # now export to an excel file

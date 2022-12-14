@@ -100,6 +100,7 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
                     if(PCBcoilVersion >= 2):
                         pygameDrawerInput.localVar.saveDXF()
                         pygameDrawerInput.localVar.to_excel()
+                        # pygameDrawerInput.localVar.imwrite() # too many specific parameters to be useful as a general keyboard key like this. It would basically require a whole submenu
                         pygameDrawerInput.lastFilename = pygameDrawerInput.localVar.generateCoilFilename()
                     else: # fallback to <V2 functionality
                         import DXFexporter as DXFexp

@@ -2,6 +2,7 @@
 a python-based PCB-coil (planar inductor) generator. Visualization in python using pygame. 
 V0 can generate basic 1-layer coils (with some deviation from the source material),
 V1 can generate multilayer coils (with parameters as described in the papers)
+V2 comes with multi-layer-coupling-factor coefficients adjusted based on test samples i made
 The math comes from 3 papers:
 - [1] provides the math for single-layer coils
 - [3] provides the math for multilayer coils

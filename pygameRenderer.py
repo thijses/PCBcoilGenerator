@@ -150,9 +150,7 @@ class pygameDrawer():
                                                                                     "layers: "+str(coil.layers),
                                                                                     (("PCBthickness [mm]: "+str(round(coil.PCBthickness, 2))) if (coil.layers>1) else ""),
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
-                                                                                    "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 2)),
-                                                                                    "induct/resist [uH/Ohm]: "+str(round(coil.calcInductance() * 1000000 / coil.calcTotalResistance(), 2)),
-                                                                                    "induct/radius [uH/mm]: "+str(round(coil.calcInductance() * 1000000 / (coil.diam/2), 2)) ],
+                                                                                    "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 2)) ],
                                                                                         'all' : [
                                                                                     "diam [mm]: "+str(round(coil.diam, 1)),
                                                                                     "trueDiam [mm]: "+str(round(coil.calcTrueDiam(), 1)),
@@ -175,7 +173,8 @@ class pygameDrawer():
                                                                                     "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 3)),
                                                                                     (("inductance 1-layer [uH]: "+str(round(coil.calcInductanceSingleLayer() * 1000000, 3))) if (coil.layers>1) else ""),
                                                                                     "induct/resist [uH/Ohm]: "+str(round(coil.calcInductance() * 1000000 / coil.calcTotalResistance(), 2)),
-                                                                                    "induct/radius [uH/mm]: "+str(round(coil.calcInductance() * 1000000 / (coil.diam/2), 2)) ] }
+                                                                                    "induct/radius [uH/mm]: "+str(round(coil.calcInductance() * 1000000 / (coil.diam/2), 2)),
+                                                                                    "induct/turns [uH/mm]: "+str(round(coil.calcInductance() * 1000000 / coil.turns, 2)) ] }
         
     def _updateViewOffset(self, mousePos: tuple[int,int]=None): #screen dragging
         """(UI element) if active (button press), 'drag' the screen around by using the mouse"""
@@ -390,7 +389,7 @@ class pygameDrawer():
         drawSpeedTimers = [('start', time.time()),]
         self.renderBG(drawSpeedTimers)
 
-        ## more code here
+        #self.drawLineList(self.localVar.renderAsCoordinateList()) # inefficient!, line list can just be stored
 
         self.renderFG(drawSpeedTimers)
 

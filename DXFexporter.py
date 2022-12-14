@@ -27,9 +27,9 @@ TODO:
 """
 
 from dxfwrite import DXFEngine as dxf
-from typing import Callable # just for type-hints to provide some nice syntax colering
 
-DXFoutputFormats: list[str] = ['EasyEDA', 'Altium']
+DXFoutputFormats: dict[str,str] = {'EasyEDA' : 'EasyEDA',
+                                    'Altium' : 'Altium'}
 
 ## NOTE: the following function has been moved to PCBcoilV_ (V2 onwards)
 def generateCoilFilename(coil: 'coilClass') -> str:
@@ -63,7 +63,7 @@ def saveDXF(coil: 'coilClass', DXFoutputFormat: str) -> list[str]:
         returns: a list of the names of the files it made """
     filenames: list[str] = []
     if(DXFoutputFormat not in DXFoutputFormats):  print("makeDXF() output format:", DXFoutputFormat, " not in list:", DXFoutputFormats);  return(filenames)
-    if(DXFoutputFormat == DXFoutputFormats[0]): # EasyEDA
+    if(DXFoutputFormat == 'EasyEDA'): # EasyEDA
         renderedCoils: list[list[tuple[float,float]]] = [coil.renderAsCoordinateList(False), coil.renderAsCoordinateList(True)]
         try: # the code should not hang on something so trivial as a filename
             filenames: list[str] = [(DXFoutputFormat+'_'+coil.generateCoilFilename()+'_')  for i in range(min(coil.layers, 2))] # from PCBcoilV2 onwards, this is the proper way to do it
@@ -89,8 +89,8 @@ def saveDXF(coil: 'coilClass', DXFoutputFormat: str) -> list[str]:
         # dxfFile.add_layer('TopSilkLayer') # truly a meaningless formality at this point
         # dxfFile.add(dxf.text('Line 1', (0.0, 0.0)))
         # dxfFile.save()
-    elif(DXFoutputFormat == DXFoutputFormats[1]): # Altium
-        print("output format '"+DXFoutputFormats[1]+"' is TBD!")
+    elif(DXFoutputFormat == 'Altium'): # Altium
+        print("output format 'Altium' is TBD!")
     else: print("impossible point reached in calcInductance(), check the formulaCoefficients formula names in this function!");  return(filenames)
     return(filenames)
 
@@ -111,8 +111,9 @@ if __name__ == "__main__": # an example of how this file may be used
     #     drawing.add(dxf.line((0, 0), (table[i%4], table[(i+1)%4]), layer=EasyEDAlayerName(i, N)))
     # drawing.save()
 
-    from PCBcoilV2 import coilClass, shapes, ozCopperToMM # mostly just used for type-hints
-    coil = coilClass(9,40,0.15,0.9,2,0.6,ozCopperToMM(1),shapes['circle'])
-    for outputFormat in DXFoutputFormats:
-        filenames = saveDXF(coil, outputFormat)
-        print("saved", outputFormat, "files:", filenames)
+    from PCBcoilV2 import coilClass, shapes, ozCopperToMM
+    coil = coilClass(turns=9, diam=24, clearance=0.1, traceWidth=1.0, layers=2, shape=shapes['circle'])
+    # for outputFormat in DXFoutputFormats:
+    #     filenames = saveDXF(coil, outputFormat)
+    #     print("saved", outputFormat, "files:", filenames)
+    saveDXF(coil, DXFoutputFormats['EasyEDA'])
