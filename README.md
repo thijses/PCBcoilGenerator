@@ -15,6 +15,13 @@ libraries:
 - pygame (tested with 3.10.8) (only needed for visualization) (CV2 version is on TODO list)
 - dxfwrite (tested with 1.2.2) (only needed for DXF exporting)
 - pandas (tested with 1.5.2) and openpyxl (tested with 3.0.10) (only needed for excel exporting) (non-pandas version is on TODO list)
+- opencv-python (tested with 4.6.0.66) (only needed for image exporting (cv2exporter.py))
+
+file explenations:
+- PCBcoilV_.py is the main file where all the fun stuff happens
+- pygameRenderer.py holds all the drawing and window-management functions
+- pygameUI.py is just for the keyboard/mouse input in pygame. It quickly gets messy, so i put it in a seperate file
+- DXF_ excel_ and cv2_  _exporter.py are exactly what they sound like. They export coil designs/specs to be used in further development
 
 
 links to papers:
