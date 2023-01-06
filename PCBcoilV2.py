@@ -25,10 +25,9 @@ In Altium there does not appear to be a way of importing a polygon, so it'll hav
 In EasyEDA you can make polygons, but you'd have to manually fill in a lot of values, so a series of line would also be fewer steps.
 
 TODO list:
- - live editing of coefficients (text boxes???)
+ - better editing of coefficients (text boxes???)
  - alter coupling factor coefficients based on test sample results
  - a little key-function list in the README file on github
- - matplotlib (3D?)
  - add a more direct exporting method (footprint files or scripts): https://www.google.com/search?q=easyEDA+scripting
  - improve pygame rendering (pygame struggles to draw thick lines like i want and the circle aren't helping much)
  - add handy UI for entering parameters (text boxes???), because using the +- keys is a little slow (and has discrete resolution)
@@ -134,7 +133,7 @@ class NthDimSpiral(_shapeBaseClass): # a general class for Nth dimensional polyg
         spacing = calcTraceSpacing(subclass.circumDiam(clearance), subclass.circumDiam(traceWidth))
         angle = itt*np.deg2rad(360/subclass.stepsPerTurn)
         circumscribedDiam = subclass.circumDiam(diam-traceWidth)
-        phaseShift = (np.deg2rad(180/subclass.stepsPerTurn) if rotateNthDimSpirals else 0.0)
+        phaseShift = ((np.deg2rad(180/subclass.stepsPerTurn)*(-1 if CCW else 1)) if rotateNthDimSpirals else 0.0)
         x = (1 if CCW else -1) * np.sin(angle+phaseShift) * ((circumscribedDiam/2) - ((angle/(2*np.pi)) * spacing))
         y =         -1         * np.cos(angle+phaseShift) * ((circumscribedDiam/2) - ((angle/(2*np.pi)) * spacing))
         return(x,y)
@@ -402,11 +401,17 @@ if __name__ == "__main__": # normal usage
         # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=0.6, copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # 2 layer PCB
         # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=0.8, copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # 4 layer PCB
         # coil = coilClass(turns=8, diam=24, clearance=0.10, traceWidth=1.0, layers=6, PCBthickness=1.2, copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # 6 layer PCB
-        # coil = coilClass(turns=9, diam=35, clearance=0.15, traceWidth=1.15, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one (0.13mm PA)
-        # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.35, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one (0.13mm PA)
-        # coil = coilClass(turns=10, diam=35, clearance=60/56, traceWidth=10/56, layers=1,                  copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # NFC antenna phase 1 (PET)
-        coil = coilClass(turns=7, diam=35, clearance=0.6, traceWidth=10/56, layers=1,                 copperThickness=0.0025, shape=shapes['square'], formula='cur_sheet') # NFC antenna phase 1 (PET)
-        renderedLineList = coil.renderAsCoordinateList()
+        # coil = coilClass(turns=9, diam=35, clearance=0.15, traceWidth=1.15, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one 35mm (0.13mm PA)
+        # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.35, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one 40mm (0.13mm PA)
+        # coil = coilClass(turns=11, diam=35, clearance=60/56, traceWidth=10/56, layers=1,                 copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # NFC antenna phase 1 (PET)
+        # coil = coilClass(turns=7, diam=35, clearance=0.6, traceWidth=10/56, layers=1,                    copperThickness=0.0025, shape=shapes['square'], formula='cur_sheet') # new design 1L thicker
+        # coil = coilClass(turns=4, diam=35, clearance=1.25, traceWidth=0.25, layers=2, PCBthickness=0.05, copperThickness=0.0020, shape=shapes['square'], formula='cur_sheet') # new design 2L (slightly thick!)
+        # coil = coilClass(turns=3, diam=35, clearance=0.75, traceWidth=0.25, layers=2, PCBthickness=0.05, copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # new design 2L alt
+        # coil = coilClass(turns=8, diam=24, clearance=0.10, traceWidth=1.0, layers=6, PCBthickness=1.2, copperThickness=0.015, shape=shapes['circle'], formula='cur_sheet') # 6L test sample (uneven spacing!)
+        
+        coil = coilClass(turns=1, diam=40, clearance=0.30, traceWidth=1.0, layers=1,                   copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # render test
+
+        renderedLineLists: list[list[tuple[int,int]]] = [coil.renderAsCoordinateList(False), coil.renderAsCoordinateList(True)]
         
         if(visualization):
             import pygameRenderer as PR # rendering code
@@ -426,7 +431,7 @@ if __name__ == "__main__": # normal usage
                 loopStart = time.time()
                 drawer.renderBG() # draw background
 
-                drawer.drawLineList(renderedLineList)
+                drawer.drawLineList(renderedLineLists)
 
                 drawer.renderFG() # draw foreground (text and stuff)
                 # drawer.redraw() # render all elements
@@ -435,15 +440,15 @@ if __name__ == "__main__": # normal usage
                 if(drawer.localVarUpdated):
                     drawer.localVarUpdated = False
                     coil = drawer.localVar
-                    renderedLineList = coil.renderAsCoordinateList()
+                    renderedLineLists = [coil.renderAsCoordinateList(False), coil.renderAsCoordinateList(True)]
                     drawer.debugText = drawer.makeDebugText(coil)
                     drawer.lastFilename = coil.generateCoilFilename()
 
                     # # debug for the calcLength() functions:
                     # from pygameRenderer import distAngleBetwPos
                     # sumOfLengths = 0
-                    # for i in range(1, len(renderedLineList)):
-                    #     sumOfLengths += distAngleBetwPos(renderedLineList[i-1], renderedLineList[i])[0] # sum length manually
+                    # for i in range(1, len(renderedLineLists[0])):
+                    #     sumOfLengths += distAngleBetwPos(renderedLineLists[0][i-1], renderedLineLists[0][i])[0] # sum length manually
                     # print("sumOfLengths:", sumOfLengths)
                 
                 loopEnd = time.time() #this is only for the 'framerate' limiter (time.sleep() doesn't accept negative numbers, this solves that)

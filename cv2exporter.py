@@ -24,7 +24,7 @@ preferredLineType = cv2.LINE_AA # there's not much difference between the line t
 ## some default colors. NOTE: should be overwritten with colorFunc
 backgroundColor = [0  ,0  ,0  ,0  ] # (BGRA) fully transparent
 copperColor     = [0  ,0  ,0  ,255] # (BGRA) black
-#isolationColor  = [0  ,216,255,255] # (BGRA) yellow
+#isolationColor  = [0  ,216,255,255] # (BGRA) yellow # NOTE: this doesn't work with the binary thresholding, it makes this 0,255,255,255
 
 defaultColorFunc: Callable[[int], tuple[int,int,int,int]] = lambda layer : (backgroundColor if (layer < 0) else copperColor) # the simplest implementation
 
@@ -38,8 +38,8 @@ def imwrite(coil: 'coilClass', pixelsPerMM:float, format:str='.png', colorFunc:C
     if(colorFunc is None):  colorFunc = defaultColorFunc
     if(format not in CV2outputFormats):
         print("imwrite invalid format!");   return([])
-    renderedCoil:list[tuple[float,float]] = coil.renderAsCoordinateList()
-    maxVal: float = max([max(abs(point[0]), abs(point[1])) for point in renderedCoil]) # gives the maximum coordinate in any direction
+    renderedCoils: list[list[tuple[float,float]]] = [coil.renderAsCoordinateList(False), coil.renderAsCoordinateList(True)]
+    maxVal: float = max([max(abs(point[0]), abs(point[1])) for point in renderedCoils[0]]) # gives the maximum coordinate in any direction
     maxVal += (coil.traceWidth/2) # the maximum coordinate is the center of a trace point, so add half the trace width to get the bounding box radius
     ## the coils are rendered around the (0,0) coordinate, so maxVal is half the minimum resolution (and let's just make it square, to make centering extra easy)
     # imageRes = (max(int(imageRes[0]), int(round(2*maxVal*pixelsPerMM))), max(int(imageRes[1]), int(round(2*maxVal*pixelsPerMM)))) # enforces minimum image size calculated
@@ -47,16 +47,16 @@ def imwrite(coil: 'coilClass', pixelsPerMM:float, format:str='.png', colorFunc:C
     blankImage = np.empty((imageRes[0],imageRes[1],4), dtype=np.uint8) # 4 channel (BGRA) image
     allImages: list[np.ndarray] = [] # a list of image arrays
     lineWidthPixels = int(coil.traceWidth * pixelsPerMM) - 1 # cv2 interprets line width a little strangely. 4=>5, 5=>7, 6=>7, 7=>9, always odd numbers, always at least 1 too big
-    layerAdjust: Callable[[tuple[float,float],int], tuple[float,float]] = lambda pos, currentLayer : ((-1 if ((currentLayer%2)!=0) else 1) * pos[0], pos[1]) # mirror odd layers
     realToPixelPos: Callable[[tuple[float,float]], tuple[int,int]] = lambda realPos : (int((imageRes[1]/2)+(realPos[0]*pixelsPerMM)),
                                                                                         int(((imageRes[0]/2)-(realPos[1]*pixelsPerMM)) if invertY else ((imageRes[0]/2)+(realPos[1]*pixelsPerMM))))
     ## NOTE: cv2 image arrays are stored as [y][x], but most (not all) functions want coordinates in (x,y).
+    pixelLineArrays = np.array([[realToPixelPos(point) for point in renderedCoil] for renderedCoil in renderedCoils], int)
     for currentLayer in range(coil.layers):
-        lineArr = np.array([realToPixelPos(layerAdjust(point, currentLayer)) for point in renderedCoil], int)
+        lineArr = pixelLineArrays[currentLayer % 2]
         allImages.append(cv2.polylines(blankImage.copy(), [lineArr.reshape((-1, 1, 2))], False, colorFunc(currentLayer), lineWidthPixels, preferredLineType)) # cv2 has a function for drawing nice lines
         ## NOTE: cv2 renders lines with smooth transitions. This is nice for human eyes, but not great for metal-etching/printing. I recommend using some kind of binary 'flattening'/rounding.
     if((coil.layers%2)!=0): # only in case of an un-even number of layers
-        allImages.append(cv2.line(blankImage.copy(), realToPixelPos((renderedCoil[-1][0], renderedCoil[0][1])), realToPixelPos(renderedCoil[-1]), colorFunc(coil.layers), lineWidthPixels, preferredLineType))
+        allImages.append(cv2.line(blankImage.copy(), realToPixelPos((renderedCoils[0][-1][0], renderedCoils[0][0][1])), realToPixelPos(renderedCoils[0][-1]), colorFunc(coil.layers), lineWidthPixels, preferredLineType))
     
     if(binary):
         ## NOTE: the binary conversion is not ideal. It currently handles every channel seperately.
@@ -80,7 +80,9 @@ def imwrite(coil: 'coilClass', pixelsPerMM:float, format:str='.png', colorFunc:C
 
 if __name__ == "__main__": # an example of how this file may be used
     from PCBcoilV2 import coilClass, shapes, ozCopperToMM
-    # coil = coilClass(turns=10, diam=35, clearance=60/56, traceWidth=9/56, layers=1, copperThickness=0.00163, shape=shapes['square'], formula='cur_sheet') # NFC antenna phase 1 (PET)
-    coil = coilClass(turns=10, diam=35, clearance=60/56, traceWidth=10/56, layers=1, copperThickness=0.00163, shape=shapes['square'], formula='cur_sheet') # NFC antenna phase 1 (PET)
+    # coil = coilClass(turns=11, diam=35, clearance=60/56, traceWidth=10/56, layers=1, copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # NFC antenna phase 1 (PET)
+    # coil = coilClass(turns=7, diam=35, clearance=0.6, traceWidth=10/56, layers=1,                    copperThickness=0.0025, shape=shapes['square'], formula='cur_sheet') # new design 1L thicker
+    # coil = coilClass(turns=3, diam=35, clearance=0.75, traceWidth=0.25, layers=2, PCBthickness=0.05, copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # new design 2L alt
+    coil = coilClass(turns=3, diam=35.5, clearance=0.25, traceWidth=0.75, layers=1, PCBthickness=0.05, copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # new design 2L alt ISO layer
     colorFunc = lambda layer : (backgroundColor if (layer<0) else [0,0,min(int(layer*255),255),255])
     imwrite(coil, 56, '.png', colorFunc, True)

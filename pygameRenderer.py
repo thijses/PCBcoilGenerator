@@ -107,8 +107,10 @@ class pygameDrawer():
         self.movingViewOffsetMouseStart = [0,0]
 
         self.layerColors = [[255,  0,  0], # red
-                            [153,153,102], # light brown
+                            [153,153,102], # grayish brown
                             [  0,128,  0], # dark green
+                            [  0,255,  0], # bright green
+                            [188,142,  0], # light brown
                             [  0,  0,255]] # blue
         
         self.FPStimer = time.time()
@@ -140,7 +142,7 @@ class pygameDrawer():
         self.debugText: dict[str,list[str]] = None # a list of some text to display
         self.debugTextKey: str = 'few' # when no key is selected, default to empty string
         from __main__ import mmCopperToOz # bad
-        self.makeDebugText: Callable[[object], dict[str,list[str]]] = lambda coil:{     'few' : [
+        self.makeDebugText: Callable[['coilClass'], dict[str,list[str]]] = lambda coil:{     'few' : [
                                                                                     "diam [mm]: "+str(round(coil.diam, 1)),
                                                                                     "shape: "+coil.shape.__class__.__name__,
                                                                                     "turns: "+str(coil.turns),
@@ -338,29 +340,49 @@ class pygameDrawer():
             dashEndPos = distAnglePosToPos(i*dashPixelPeriod + dashPixelPeriod*dashDutyCycle, angle, startPixelPos)
             pygame.draw.line(self.windowHandler.window, lineColor, dashStartPos, dashEndPos, int(lineWidth))
     
-    def drawLineList(self, lineList: list[tuple[int,int]]):
-        if(len(lineList) < 2):
-            # print("can't drawLineList(), list too short!")
-            return
+    ## the arc drawing function works just fine, but it looks bad and makes the whole code terribly slow (not even my fault (this time), pygame is to blame)
+    # def _shortArc(self, lineColor: pygame.Color, startPos: np.ndarray, endPos: np.ndarray, centerPos: np.ndarray, lineWidthReal: float):
+    #     """draw an arc (in place of a straight line, which has some rendering limitations)
+    #         radius of startPos and endPos (to centerPos) should not be too different, or it will look wrong"""
+    #     startEndDistAngle = distAngleBetwPos(startPos, endPos)
+    #     averageRadius = (distAngleBetwPos(centerPos, startPos)[0] + distAngleBetwPos(centerPos, endPos)[0]) / 2
+    #     angleToAdjCenter = np.arccos((startEndDistAngle[0]/2) / averageRadius) # cos-1(a/h)
+    #     adjCenterPos = distAnglePosToPos(averageRadius, startEndDistAngle[1] - angleToAdjCenter, startPos) # TODO: check if angle always correct (may need invert option)
+    #     adjCenterPixelPos = self.realToPixelPos(adjCenterPos)
+    #     boundBoxRadius = (averageRadius + (lineWidthReal/2)) * self.sizeScale
+    #     boundingRect = [(adjCenterPixelPos[0]-boundBoxRadius, adjCenterPixelPos[1]-boundBoxRadius),   # (left,top), NOTE: self.invertYaxis missing
+    #                     (boundBoxRadius*2, boundBoxRadius*2)] # (width, height)
+    #     arcStartAngle = distAngleBetwPos(adjCenterPos, endPos)[1];   arcEndAngle = distAngleBetwPos(adjCenterPos, startPos)[1]
+    #     pygame.draw.arc(self.windowHandler.window, lineColor, boundingRect, arcStartAngle, arcEndAngle, int(lineWidthReal * self.sizeScale))
+
+    def drawLineList(self, lineLists: list[list[tuple[int,int]]]):
+        """draw a series of lines (used for rendering coils)"""
+        coilToDraw: 'coilClass' = self.localVar # if it crashes here, then it's probably time to fix this whole mess (rewrite the rendering class interaction with __main__)
+        if(len(np.array(lineLists).shape) < 3):  lineLists = [lineLists, coilToDraw.renderAsCoordinateList(True)] # NOTE: backwards-compatibility hack for V0 & V1. Terrible, i hate it, it should probably work
+        if((len(lineLists) < 1) or (len(lineLists) < min(coilToDraw.layers, 2))):   print("can't drawLineList(), not enough lineLists provided");   return
+        if(len(lineLists[0]) < 2):   print("can't drawLineList(), lineLists[0] too short!");   return
         
-        coilToDraw = self.localVar # if it crashes here, you know what to do
         ## deleteme:
         # N = 6; L = 20.0
         # for i in range(N):
         #     # pygame.draw.line(self.windowHandler.window, [127,127,127], self.realToPixelPos(np.zeros(2)), self.realToPixelPos(distAnglePosToPos(20.0, i*2*np.pi/N, np.zeros(2))), 2)
         #     self._dashedLine([127,127,127], self.realToPixelPos(np.zeros(2)), self.realToPixelPos(distAnglePosToPos(L, i*2*np.pi/N, np.zeros(2))), 2, L*self.sizeScale/20, 0.5) # dashed line (looks bad, adds nothing here)
-        smoothCorners = (True if isinstance(coilToDraw.shape.stepsPerTurn, int) else False) # only smooth corners for squares
+        isCircular = (True if isinstance(coilToDraw.shape.stepsPerTurn, float) else False) # only smooth corners for squares
         lineWidthPixels = int(coilToDraw.traceWidth * self.sizeScale)
-        layerAdjust: Callable[[tuple[float,float],int], tuple[float,float]] = lambda pos, currentLayer : ((-1 if ((currentLayer%2)!=0) else 1) * pos[0], pos[1] + coilToDraw.diam*currentLayer) # mirror odd layers
+        layerAdjust: Callable[[tuple[float,float],int], tuple[float,float]] = lambda pos, currentLayer : (pos[0] + coilToDraw.diam*currentLayer, pos[1]) # offset the positions of the different layers to make them visible
         if((coilToDraw.layers%2)!=0): # only in case of an un-even number of layers
-            pygame.draw.line(self.windowHandler.window, self.layerColors[coilToDraw.layers % len(self.layerColors)], self.realToPixelPos((lineList[-1][0], lineList[0][1])), self.realToPixelPos(lineList[-1]), lineWidthPixels) # draw return trace first
+            pygame.draw.line(self.windowHandler.window, self.layerColors[coilToDraw.layers % len(self.layerColors)], self.realToPixelPos((lineLists[0][-1][0], lineLists[0][0][1])), self.realToPixelPos(lineLists[0][-1]), lineWidthPixels) # draw return trace first
         for layerItt in range(coilToDraw.layers):
             currentLayer = coilToDraw.layers-1-layerItt;  currentLayerColor = self.layerColors[currentLayer % len(self.layerColors)] # draw layers back to front
+            lineList = lineLists[currentLayer % 2] # one list is CW and the other is CCW. (NOTE: this replaces the mirroring of layerAdjust in previous versions)
             for i in range(len(lineList)-1):
                 # if(i > int((pygame.mouse.get_pos()[0] / self.drawSize[0]) * len(lineList))):  break   # drawing debug
+                # if(isCircular): # the arc drawing code works, but doesn't look that much better (pygame kinda sucks). ALSO, it runs slow as hell
+                #     self._shortArc(currentLayerColor, layerAdjust(lineList[i], currentLayer), layerAdjust(lineList[i+1], currentLayer), np.zeros(2), coilToDraw.traceWidth)
+                # else: # squares and other (regular) polygons
                 startPos = self.realToPixelPos(layerAdjust(lineList[i], currentLayer));   endPos = self.realToPixelPos(layerAdjust(lineList[i+1], currentLayer))
                 pygame.draw.line(self.windowHandler.window, currentLayerColor, startPos, endPos, lineWidthPixels)
-                if(smoothCorners):
+                if(not isCircular):
                     pygame.draw.ellipse(self.windowHandler.window, currentLayerColor, [ASA(-((lineWidthPixels-2)/2), endPos), [lineWidthPixels, lineWidthPixels]]) # draw a little circle in the corners for a smoother look
         
         ## deleteme also:
@@ -389,7 +411,7 @@ class pygameDrawer():
         drawSpeedTimers = [('start', time.time()),]
         self.renderBG(drawSpeedTimers)
 
-        #self.drawLineList(self.localVar.renderAsCoordinateList()) # inefficient!, line list can just be stored
+        #self.drawLineList([self.localVar.renderAsCoordinateList(False), self.localVar.renderAsCoordinateList(True)]) # inefficient!, line list can just be stored
 
         self.renderFG(drawSpeedTimers)
 
