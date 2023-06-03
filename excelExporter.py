@@ -98,7 +98,9 @@ if __name__ == "__main__": # normal usage
     
     ## 6L test PCB
     coilList.append(coilClass(turns=8, diam=24, clearance=0.10, traceWidth=1.0, layers=6, PCBthickness=1.2, copperThickness=0.015, shape=shapes['circle'], formula='cur_sheet')) # 6L test sample (uneven spacing!)
+    
 
+    ## forloop example:
     # shapeList = (shapes['square'], shapes['circle']) # to fetch all shapes, use: [shapes[key] for key in shapes]
     # layerList = (1,2,3,4)
     # turnsList = (6,9)
@@ -108,7 +110,6 @@ if __name__ == "__main__": # normal usage
     # PCBthicknessList = (0.6, 0.8)
     # copperThicknessList = (0.03, 0.0348)
     # formulaList = ('cur_sheet', )
-
     # for shape in shapeList:
     #     for layers in layerList:
     #         for turns in turnsList:

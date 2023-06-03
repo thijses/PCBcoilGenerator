@@ -1,17 +1,20 @@
 """
 this code is intended for generating (and visualizing) PCB coils (a.k.a. planar inductors), with 1 or more layers
-this code can (currently) only produce coils with an equal width and height (one diameter parameter)
+this code can (currently) only produce coils with an equal width and height (one diameter parameter, no ovals)
 V2 differs from V1 in that I've now started to adjust the math based on some test samples i've made.
 In V1, the constants in the formulas all perfectly match those in the papers that they originate from,
  now however, the constants for calculating the coupling factor in multi-layer coils will be different!
 NOTE: the math for single-layer coils remains the same, as that appeared to be quite accurate (in the 4~5 samples i measured)
-For details on these test samples i analyzed, please refer to the testing documentation: QRD21343-0007
+For details on these test samples i analyzed, please refer to the documentation/notes i wrote: (should be a PDF next to this code somewhere)
+
+I am not the first to try this, and others have already done this BETTER: 
+- (probably better alternative solution) https://www.mdpi.com/1424-8220/21/14/4864      <-- models every single line segment using Maxwell equations (like a nerd). Probably more accurate than this though
 
 in the making of this code, i used these papers:
 paper[1] @ https://stanford.edu/~boyd/papers/pdf/inductance_expressions.pdf     which is applied for demo purposes @ https://coil32.net/pcb-coil.html
 paper[2] @ http://www.edatop.com/down/paper/NFC/A_new_calculation_for_designing_multilayer_planar_spiral_inductors_PDF.pdf
 paper[3] @ https://www.researchgate.net/publication/271291453_Design_and_Optimization_of_Printed_Circuit_Board_Inductors_for_Wireless_Power_Transfer_System
-unused (for now): paper[4] @ https://inpressco.com/wp-content/uploads/2017/10/Paper26.1835-1841.pdf
+UNUSED (for now): paper[4] @ https://inpressco.com/wp-content/uploads/2017/10/Paper26.1835-1841.pdf
 
 the single-layer math comes from paper[1]
 the multilayer coil calculations came from paper[2] and paper[3]  NOTE: V2 has adjustments to the coefficients!
@@ -26,14 +29,14 @@ In EasyEDA you can make polygons, but you'd have to manually fill in a lot of va
 
 TODO list:
  - better editing of coefficients (text boxes???)
- - alter coupling factor coefficients based on test sample results
- - a little key-function list in the README file on github
+ - layer stack editor (seperate screen???)
  - add a more direct exporting method (footprint files or scripts): https://www.google.com/search?q=easyEDA+scripting
  - improve pygame rendering (pygame struggles to draw thick lines like i want and the circle aren't helping much)
- - add handy UI for entering parameters (text boxes???), because using the +- keys is a little slow (and has discrete resolution)
  - add an auto-optimizer (given a few limits (diameter, clearance, layers, layerSpacing) and targets (inductance, resistance, layers?), find the optimim coil design (minimizing for number of layers, resistance, etc.))
  - find a way to model rectangular/oval coils (non-square)
- - add visual for (approximation of) the size of the magnetic field the coil exudes
+ - add visual for (approximation of) the size of the magnetic field the coil exudes???
+ - (i think doing this for coils with different inductances on different layers might not be impossible. M = K*sqrt(L_1*L_2) => K*L if L_1==L_2, but since i estimate K, why couldn't the coils be different?...)
+        (extra note: different coil specs on diffent layers could prove especially useful, as coupling is nonlinear, while resistance is linear (more layers -> more efficient), BUT inner layers means thin copper)
 """
 
 
@@ -260,29 +263,30 @@ def calcInductanceSingleLayer(turns: int, diam: float, clearance: float, traceWi
         return((coeff[0] * magneticConstant * (turns**2) * averageDiamM * (np.log(coeff[1]/fillFactor) + (coeff[2]*fillFactor) + (coeff[3]*(fillFactor**2)))) / 2)
     else: print("impossible point reached in calcInductanceSingleLayer(), check the formulaCoefficients formula names in this function!");  return(-1.0) # should never happen due to earlier check
 
-def calcInductanceMultilayer(turns: int, diam: float, clearance: float, traceWidth: float, layers: int, layerSpacing: float, shape: _shapeBaseClass, formula: str) -> float:
-    """ returns inducance (in Henry) of PCB coil (multi-layer) """
-    singleInduct = calcInductanceSingleLayer(turns, diam, clearance, traceWidth, shape, formula) # calculate the inductance of a single layer the same way
-    if(singleInduct < 0):  print("can't calcInductanceMultilayer(), calcInductanceSingleLayer() returned <0:", singleInduct);  return(-1.0) # should never happen
+################ original formula
+# def calcInductanceMultilayer(turns: int, diam: float, clearance: float, traceWidth: float, layers: int, layerSpacing: float, shape: _shapeBaseClass, formula: str) -> float:
+#     """ returns inducance (in Henry) of PCB coil (multi-layer) """
+#     singleInduct = calcInductanceSingleLayer(turns, diam, clearance, traceWidth, shape, formula) # calculate the inductance of a single layer the same way
+#     if(singleInduct < 0):  print("can't calcInductanceMultilayer(), calcInductanceSingleLayer() returned <0:", singleInduct);  return(-1.0) # should never happen
     
-    ## See V1 for some notes on how the I combined paper[2] and [3]
-    ## In V2, i'm altering the coupling factor coefficients based on measurements of some test samples i made
-    ## the single-layer inductance predictions were spot-on, but all the multilayer predictions are below their measured values.
-    ## i've deconstructed the coupling factor and split it into 3 parts (only first of which is actually layer(spacing) dependent)
-    
-    spaceCoef: tuple[float] = (0.184, -0.525, 1.038, 1.001) # values in paper[2] = (0.184, -0.525, 1.038, 1.001)
-    couplFactDeconstrSpaceComp: Callable[[float], float] = lambda layerSpacingMM : (spaceCoef[0]*(layerSpacingMM**3) + spaceCoef[1]*(layerSpacingMM**2) + spaceCoef[2]*layerSpacingMM + spaceCoef[3])
-    turnsCoef: tuple[float] = (1.67, -5.84, 65) # values in paper[2] = (1.67, -5.84, 65)
-    couplFactDeconstrTurnsComp: Callable[[float], float] = lambda turns : ((turns**2) / (turnsCoef[0]*(turns**2) + turnsCoef[1]*turns + turnsCoef[2]))
-    generalCoef: float = 1.0 / 0.64 # values in paper[2] = 1.0 / 0.64
+#     ## See V1 for some notes on how the I combined paper[2] and [3]
+#     ## NOTE: this formula can be greatly improved by REMOVING turnsCoef, and replacing it with a constant value (scaling generalCoef). This is still worse at very small layerSpacing, because spaceCoef should've been linear
+#     ## TODO: (even though this stuff is depricated), add layer stack manager stuff to this one as well
+#     spaceCoef: tuple[float] = (0.184, -0.525, 1.038, 1.001) # values in paper[2] = (0.184, -0.525, 1.038, 1.001)
+#     couplFactDeconstrSpaceComp: Callable[[float], float] = lambda layerSpacingMM : (spaceCoef[0]*(layerSpacingMM**3) + spaceCoef[1]*(layerSpacingMM**2) + spaceCoef[2]*layerSpacingMM + spaceCoef[3])
+#     turnsCoef: tuple[float] = (1.67, -5.84, 65) # values in paper[2] = (1.67, -5.84, 65)
+#     couplFactDeconstrTurnsComp: Callable[[float], float] = lambda turns : ((turns**2) / (turnsCoef[0]*(turns**2) + turnsCoef[1]*turns + turnsCoef[2]))
+#     generalCoef: float = 1.0 / 0.64 # values in paper[2] = 1.0 / 0.64
 
-    ## the formula for inductance (from paper[3]) (assuming i'm interpreting it correctly):
-    layerDependentCouplingComp = 0.0 # note: this is alsmost mutual inductance, it just needs to be multiplied with singleInduct (which is done at the end)
-    for i in range(1, layers):
-        layerDependentCouplingComp += (layers-i) / couplFactDeconstrSpaceComp(i * layerSpacing)
-    totalInduct = singleInduct * (layers + (2 * layerDependentCouplingComp * couplFactDeconstrTurnsComp(turns) * generalCoef) )
-    return(totalInduct)
+#     ## the formula for inductance (from paper[3]) (assuming i'm interpreting it correctly):
+#     layerDependentCouplingComp = 0.0 # note: this is alsmost mutual inductance, it just needs to be multiplied with singleInduct (which is done at the end)
+#     for i in range(1, layers):
+#         layerDependentCouplingComp += (layers-i) / couplFactDeconstrSpaceComp(i * layerSpacing)
+#     totalInduct = singleInduct * (layers + (2 * layerDependentCouplingComp * couplFactDeconstrTurnsComp(turns) * generalCoef) )
+#     return(totalInduct)
 
+
+################ unfinished rework using a 4th paper
 # def calcInductanceMultilayer(turns: int, diam: float, clearance: float, traceWidth: float, layers: int, layerSpacing: float, shape: _shapeBaseClass, formula: str) -> float:
 #     """ returns inducance (in Henry) of PCB coil (multi-layer) """
 #     singleInduct = calcInductanceSingleLayer(turns, diam, clearance, traceWidth, shape, formula) # calculate the inductance of a single layer the same way
@@ -310,6 +314,50 @@ def calcInductanceMultilayer(turns: int, diam: float, clearance: float, traceWid
 #         totalMutualInduct *= ((4/np.pi)**v)
 #     ## mutual inductance to total inductance math here!
 #     return(totalInduct)
+
+################ my formula (Note: based on somewhat limited sample size (see documentation))
+def calcInductanceMultilayer(turns: int, diam: float, clearance: float, traceWidth: float, layers: int, layerSpacing: float, shape: _shapeBaseClass, formula: str) -> float:
+    """ returns inducance (in Henry) of PCB coil (multi-layer) """
+    singleInduct = calcInductanceSingleLayer(turns, diam, clearance, traceWidth, shape, formula) # calculate the inductance of a single layer the same way
+    if(singleInduct < 0):  print("can't calcInductanceMultilayer(), calcInductanceSingleLayer() returned <0:", singleInduct);  return(-1.0) # should never happen
+    
+    ## instead of using an inverted 4th-order polynomial for the spacing, and another wacky function for the turns-coefficient,
+    ## this assumes the relation between layerSpacing and coupling to be roughly linear (because that is what my sample data showed (see documentation))
+    ## I am aware that another parameter should be taken into account, but my sample size was too limited to definitively identify it...
+    ## therefore, i should mention that my smallest samples (12mm coils) had ~10% prediction overshoot (which i find to be just too much).
+
+    ## the new constants are a 1st-order polynomial (a.k.a. a linear function), applied to each spacing individually (or to the sum, using the triangular number for D0, like i do below)
+    couplingConstant_D : tuple[float] = (1.025485443, -0.201166582) # like (D0,D1) where k = D1*s + D0 (1st order polynomial)
+
+    ## layer stack management stuff is all TODO!
+    # outerLayerCopperThickness = 0.035
+    # innerLayerCopperThickness = 0.0152
+    # layerStack : tuple[float] \
+    #             = (outerLayerCopperThickness,
+    #                 0.0994,
+    #                 innerLayerCopperThickness,
+    #                 0.35,
+    #                 innerLayerCopperThickness,
+    #                 0.1088,
+    #                 innerLayerCopperThickness,
+    #                 0.35,
+    #                 innerLayerCopperThickness,
+    #                 0.0994,
+    #                 outerLayerCopperThickness,
+    #                 )
+    # sumOfSpacings = 0.0
+    # for i in range(0, len(layerStack)-2, 2): # Note: this could go to len(layerStack), but the last entry would skip the j for-loop below entirely.
+    #     for j in range(i+1, len(layerStack)-1, 2):
+    #         spacing = sum(layerStack[i:(j+2)]) # total thickness (incuding copper) from layer i to layer (j+1)
+    #         spacing -= (layerStack[i] + layerStack[(j+1)]) / 2 # subtract half the thickness of both copper layers, (so the calculations are done from the centers of the copper layers)
+    #         sumOfSpacings += spacing
+    #         # sumOfCouplingFactors += (couplingConstant_D[1] * spacing) + couplingConstant_D[0] # DEPRICATED. The sumOfSpacings is used instead (along with a triangular number for D[0], see code below)
+    sumOfSpacings = layerSpacing * ((layers*(layers+1)*(layers-1))/6) # TODO: replace with layer stack! (this assumes equidistant layers, uses a calculation similar to triangular_number to skip forloop)
+
+    triangularNumber = (layers*(layers-1))/2 # triangular number
+    sumOfCouplingFactors = (couplingConstant_D[1] * sumOfSpacings) + (triangularNumber * couplingConstant_D[0]) # preliminary formula (final formula may include more parameters)
+    totalInduct = singleInduct * (layers + 2*sumOfCouplingFactors) # preliminary formula (final formula may include more parameters)
+    return(totalInduct)
 
 def generateCoilFilename(coil: 'coilClass') -> str:
     """ return a (consistently formatted) string based on the properties of the coil """
@@ -398,18 +446,19 @@ if __name__ == "__main__": # normal usage
     try:
 
         # coil = coilClass(turns=9, diam=40, clearance=0.30, traceWidth=1.0, layers=1,                   copperThickness=0.030, shape=shapes['hexagon'], formula='cur_sheet') # single layer on PA
-        # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=0.6, copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # 2 layer PCB
+        coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=2, PCBthickness=0.6, copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # 2 layer PCB
         # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=0.9, layers=4, PCBthickness=0.8, copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # 4 layer PCB
         # coil = coilClass(turns=8, diam=24, clearance=0.10, traceWidth=1.0, layers=6, PCBthickness=1.2, copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # 6 layer PCB
-        # coil = coilClass(turns=9, diam=35, clearance=0.15, traceWidth=1.15, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one 35mm (0.13mm PA)
-        # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.35, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one 40mm (0.13mm PA)
+        # coil = coilClass(turns=9, diam=35, clearance=0.15, traceWidth=1.15, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one 35mm (0.13mm PA) (NOT USED)
+        # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.35, layers=2, PCBthickness=0.13, copperThickness=0.045, shape=shapes['circle'], formula='cur_sheet') # WLP final one 40mm (0.13mm PA) (USED PCB R01)
+        # coil = coilClass(turns=9, diam=40, clearance=0.15, traceWidth=1.35, layers=2, PCBthickness=0.1, copperThickness=0.018, shape=shapes['circle'], formula='cur_sheet') # PCB R01 with 0.5oz copper
         # coil = coilClass(turns=11, diam=35, clearance=60/56, traceWidth=10/56, layers=1,                 copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # NFC antenna phase 1 (PET)
         # coil = coilClass(turns=7, diam=35, clearance=0.6, traceWidth=10/56, layers=1,                    copperThickness=0.0025, shape=shapes['square'], formula='cur_sheet') # new design 1L thicker
         # coil = coilClass(turns=4, diam=35, clearance=1.25, traceWidth=0.25, layers=2, PCBthickness=0.05, copperThickness=0.0020, shape=shapes['square'], formula='cur_sheet') # new design 2L (slightly thick!)
         # coil = coilClass(turns=3, diam=35, clearance=0.75, traceWidth=0.25, layers=2, PCBthickness=0.05, copperThickness=0.0015, shape=shapes['square'], formula='cur_sheet') # new design 2L alt
         # coil = coilClass(turns=8, diam=24, clearance=0.10, traceWidth=1.0, layers=6, PCBthickness=1.2, copperThickness=0.015, shape=shapes['circle'], formula='cur_sheet') # 6L test sample (uneven spacing!)
         
-        coil = coilClass(turns=1, diam=40, clearance=0.30, traceWidth=1.0, layers=1,                   copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # render test
+        # coil = coilClass(turns=1, diam=40, clearance=0.30, traceWidth=1.0, layers=1,                   copperThickness=0.030, shape=shapes['circle'], formula='cur_sheet') # render test
 
         renderedLineLists: list[list[tuple[int,int]]] = [coil.renderAsCoordinateList(False), coil.renderAsCoordinateList(True)]
         
@@ -418,7 +467,7 @@ if __name__ == "__main__": # normal usage
             import pygameUI as UI # UI handling code
 
             ## some UI window initialization
-            windowHandler = PR.pygameWindowHandler([1280, 720])
+            windowHandler = PR.pygameWindowHandler([1280, 720], "PCB coil generator", "fancy/icon.png")
             drawer = PR.pygameDrawer(windowHandler)
             
             drawer.localVar = coil # not my best code...
@@ -452,7 +501,7 @@ if __name__ == "__main__": # normal usage
                     # print("sumOfLengths:", sumOfLengths)
                 
                 loopEnd = time.time() #this is only for the 'framerate' limiter (time.sleep() doesn't accept negative numbers, this solves that)
-                targetFPS = 30
+                targetFPS = 60
                 if((loopEnd-loopStart) < (1/(targetFPS*1.05))): #60FPS limiter (optional)
                     time.sleep((1/targetFPS)-(loopEnd-loopStart))
                 # elif((loopEnd-loopStart) > (1/5)):

@@ -51,6 +51,26 @@ flagCurs16Data = ((16,16),(0,15)) + pygame.cursors.compile(flagCurs16, 'X', '.',
 flagCursorSet = False
 deleteCursorSet = False
 
+## key bindings array
+keyBindings: dict[str, int|tuple[int]] = { \
+    "showKeyBind_toggle" : pygame.K_h,
+    "zoom_toggle" : pygame.K_z,
+    "grid_toggle" : pygame.K_g,
+    "saveToFile" : pygame.K_s,
+    "text_toggle" : pygame.K_t,
+    "viewPlot" : pygame.K_v,
+    # "debug" : pygame.K_d,
+    "paramTurnCount_change" : (pygame.K_MINUS, pygame.K_EQUALS),
+    "paramDiameter_change" : (pygame.K_LEFTBRACKET, pygame.K_RIGHTBRACKET),
+    "paramTraceWidth_change" : (pygame.K_SEMICOLON, pygame.K_QUOTE),
+    "paramClearance_change" : (pygame.K_PERIOD, pygame.K_SLASH),
+    "paramCopperThickness_change" : (pygame.K_u, pygame.K_i),
+    "paramLayerCount_change" : (pygame.K_k, pygame.K_l),
+    "paramPcbTickness_change" : (pygame.K_m, pygame.K_COMMA),
+    "paramShape_change" : (pygame.K_9, pygame.K_0),
+    "paramFormula_change" : (pygame.K_o, pygame.K_p),
+    "paramDirection_toggle" : pygame.K_SPACE,
+    }
 
 
 def handleMousePress(pygameDrawerInput: rend.pygameDrawer, buttonDown: bool, button: int, pos, eventToHandle: pygame.event.Event):
@@ -86,11 +106,13 @@ def handleMousePress(pygameDrawerInput: rend.pygameDrawer, buttonDown: bool, but
 def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int, eventToHandle: pygame.event.Event):
     """(UI element) handle the key-press-events"""
     if(keyDown): #most things only happen on keyDown, this just saves a few lines
-        if(key==pygame.K_z): # z for zooming type toggle
+        if(key==keyBindings["showKeyBind_toggle"]): # h for a showing the key bindings (or maybe even a full-on 'help' screen, in the future)
+            pygameDrawerInput.showHelpScreen = not pygameDrawerInput.showHelpScreen # toggle
+        elif(key==keyBindings["zoom_toggle"]): # z for zooming type toggle
             pygameDrawerInput.centerZooming = not pygameDrawerInput.centerZooming # toggle
-        elif(key==pygame.K_g): # g for grid on/off toggle
+        elif(key==keyBindings["grid_toggle"]): # g for grid on/off toggle
             pygameDrawerInput.drawGrid = not pygameDrawerInput.drawGrid # toggle
-        elif(key==pygame.K_s): # s for saving (TBD!)
+        elif(key==keyBindings["saveToFile"]): # s for saving (TBD!)
             saveStartTime = time.time()
             try:
                 if(pygameDrawerInput.localVar is not None):
@@ -115,7 +137,7 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
                     print("failed to save file, localVar is", pygameDrawerInput.localVar)
             except Exception as excep:
                 print("failed to save file, exception:", excep)
-        elif(key==pygame.K_t): # t
+        elif(key==keyBindings["text_toggle"]): # t will change text displayed
             try:
                 if(pygameDrawerInput.debugText is not None):
                     keyList = list(pygameDrawerInput.debugText.keys()) # bad code (but it is generalizable)
@@ -127,6 +149,16 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
                         pygameDrawerInput.debugTextKey = keyList[0]
             except Exception as excep:
                 print("fialed to increment debugTextKey from pygameUI:", excep)
+        elif(key==keyBindings["viewPlot"]): # v will show a matplotlib render of the coil (for no reason)
+            ## NOTE: pygame will be unresponsive untill matplotlib is done and its window is closed
+            try:
+                import matplotlibRenderer as MPLR
+                if(pygameDrawerInput.localVar is not None):
+                    MPLR.plot4d(pygameDrawerInput.localVar)
+                else:
+                    print("failed to render in matplotlib, localVar is", pygameDrawerInput.localVar)
+            except Exception as excep:
+                print("failed to render in matplotlib:", excep)
         # elif(key==pygame.K_v): # v
         #     ## TBD: center view?
 #        elif(key==pygame.K_d): # d   (for debug)
@@ -134,58 +166,58 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
         if(pygameDrawerInput.localVar is not None): # coil adjustment though UI requires a little bit of synchronization effor (also, python doesnt do pointers)
 
             ## changing the number of turns
-            if((key==pygame.K_MINUS) or (key==pygame.K_EQUALS)): # - or =(+)
-                pygameDrawerInput.localVar.turns += 1 * (1 if (key==pygame.K_EQUALS) else -1)
+            if(key in keyBindings["paramTurnCount_change"]): # - or =(+)
+                pygameDrawerInput.localVar.turns += 1 * (1 if (key==keyBindings["paramTurnCount_change"][1]) else -1)
                 if(pygameDrawerInput.localVar.turns < 1):
                     pygameDrawerInput.localVar.turns = 1
             
             ## changing the (outer) diameter
-            elif((key==pygame.K_LEFTBRACKET) or (key==pygame.K_RIGHTBRACKET)): # [ or ]
+            elif(key in keyBindings["paramDiameter_change"]): # [ or ]
                 increment = (10 if pygame.key.get_pressed()[pygame.K_LSHIFT] else 1) # increment with 1m or 10mm, depending on whether you're holding shift
-                pygameDrawerInput.localVar.diam += increment * (1 if (key==pygame.K_RIGHTBRACKET) else -1)
+                pygameDrawerInput.localVar.diam += increment * (1 if (key==keyBindings["paramDiameter_change"][1]) else -1)
                 if(pygameDrawerInput.localVar.diam < 1):
                     pygameDrawerInput.localVar.diam = 1
                     
             ## changing the width of the coil trace
-            elif((key==pygame.K_SEMICOLON) or (key==pygame.K_QUOTE)): # ; or '
-                pygameDrawerInput.localVar.traceWidth += 0.05 * (1 if (key==pygame.K_QUOTE) else -1)
+            elif(key in keyBindings["paramTraceWidth_change"]): # ; or '
+                pygameDrawerInput.localVar.traceWidth += 0.05 * (1 if (key==keyBindings["paramTraceWidth_change"][1]) else -1)
                 if(pygameDrawerInput.localVar.traceWidth < 0.05):
                     pygameDrawerInput.localVar.traceWidth = 0.05
             
             ## changing the clearance between the turns
-            elif((key==pygame.K_PERIOD) or (key==pygame.K_SLASH)): # . or /
-                pygameDrawerInput.localVar.clearance += 0.05 * (1 if (key==pygame.K_SLASH) else -1)
+            elif(key in keyBindings["paramClearance_change"]): # . or /
+                pygameDrawerInput.localVar.clearance += 0.05 * (1 if (key==keyBindings["paramClearance_change"][1]) else -1)
                 if(pygameDrawerInput.localVar.clearance < 0.05):
                     pygameDrawerInput.localVar.clearance = 0.05
             
             ## changing the thickness of the copper layers
-            elif((key==pygame.K_u) or (key==pygame.K_i)): # u or i
+            elif(key in keyBindings["paramCopperThickness_change"]): # u or i
                 increment = (0.0348 if pygame.key.get_pressed()[pygame.K_LSHIFT] else 0.001) # increment with 1um or 1oz, depending on whether you're holding shift
-                pygameDrawerInput.localVar.copperThickness += increment * (1 if (key==pygame.K_i) else -1)
+                pygameDrawerInput.localVar.copperThickness += increment * (1 if (key==keyBindings["paramCopperThickness_change"][1]) else -1)
                 if(pygameDrawerInput.localVar.copperThickness < 0.001):
                     pygameDrawerInput.localVar.copperThickness = 0.001
             
-            ## changing the number of layers (V1 only)
-            elif((key==pygame.K_k) or (key==pygame.K_l)): # k or l
-                pygameDrawerInput.localVar.layers += 1 * (1 if (key==pygame.K_l) else -1)
+            ## changing the number of layers (V1+ only)
+            elif(key in keyBindings["paramLayerCount_change"]): # k or l
+                pygameDrawerInput.localVar.layers += 1 * (1 if (key==keyBindings["paramLayerCount_change"][1]) else -1)
                 if(pygameDrawerInput.localVar.layers < 1):
                     pygameDrawerInput.localVar.layers = 1
             
-            ## changing the thickness of the PCB (V1 only)
-            elif((key==pygame.K_m) or (key==pygame.K_COMMA)): # m or ,
+            ## changing the thickness of the PCB (V1+ only)
+            elif(key in keyBindings["paramPcbTickness_change"]): # m or ,
                 if(pygameDrawerInput.localVar.layers > 1):
-                    pygameDrawerInput.localVar.PCBthickness += 0.2 * (1 if (key==pygame.K_COMMA) else -1)
+                    pygameDrawerInput.localVar.PCBthickness += 0.2 * (1 if (key==keyBindings["paramPcbTickness_change"][1]) else -1)
                     if(pygameDrawerInput.localVar.PCBthickness < 0.2):
                         pygameDrawerInput.localVar.PCBthickness = 0.2
             
             ## changing the shape of the coil
-            elif((key==pygame.K_9) or (key==pygame.K_0)): # 9 or 0
+            elif(key in keyBindings["paramShape_change"]): # 9 or 0
                 ## here is some absolutely awful, truly terrible code, do deal with my human-legiblity-focussed-class-structured code
                 try:
                     from __main__ import shapes # bad
                     shapes: dict
                     nextKeyIndex = [item.__class__ for item in list(shapes.values())].index(pygameDrawerInput.localVar.shape.__class__) # worse
-                    nextKeyIndex += (1 if (key==pygame.K_0) else -1) # increment/decrement
+                    nextKeyIndex += (1 if (key==keyBindings["paramShape_change"][1]) else -1) # increment/decrement
                     if(nextKeyIndex >= len(shapes)):  nextKeyIndex = 0 # positive rollover
                     elif(nextKeyIndex < 0):           nextKeyIndex = len(shapes)-1 # negative rollover
                     pygameDrawerInput.localVar.shape = shapes[list(shapes.keys())[nextKeyIndex]] # awful
@@ -196,11 +228,11 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
                     print("fialed to increment shape from pygameUI:", excep)
             
             ## changing the formula used to calculate the inductance of the coil
-            elif((key==pygame.K_o) or (key==pygame.K_p)): # o or p
+            elif(key in keyBindings["paramFormula_change"]): # o or p
                 try:
                     temp = list(pygameDrawerInput.localVar.shape.formulaCoefficients.keys()) # get a list of possible formulas (key str) for the current shape
                     nextKeyIndex = temp.index(pygameDrawerInput.localVar.formula) # worse
-                    nextKeyIndex += (1 if (key==pygame.K_p) else -1) # increment/decrement
+                    nextKeyIndex += (1 if (key==keyBindings["paramFormula_change"][1]) else -1) # increment/decrement
                     if(nextKeyIndex >= len(temp)):  nextKeyIndex = 0 # positive rollover
                     elif(nextKeyIndex < 0):           nextKeyIndex = len(temp)-1 # negative rollover
                     pygameDrawerInput.localVar.formula = temp[nextKeyIndex]
@@ -208,7 +240,7 @@ def handleKeyPress(pygameDrawerInput: rend.pygameDrawer, keyDown: bool, key: int
                     print("fialed to increment formula from pygameUI:", excep)
             
             ## changing the direction of the spiral (V1 only)
-            elif(key==pygame.K_SPACE): # spacebar
+            elif(key==keyBindings["paramDirection_toggle"]): # spacebar
                 pygameDrawerInput.localVar.CCW = not pygameDrawerInput.localVar.CCW
             
             pygameDrawerInput.localVarUpdated = True # let the drawer know it's time to re-render the coil (even if none of the key if-statements are true, it's fine)

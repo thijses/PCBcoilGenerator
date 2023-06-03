@@ -29,12 +29,102 @@ def distAnglePosToPos(funcRadius, funcAngle, funcPos): #returns a new pos given 
 
 ASA = lambda scalar, inputArray : [scalar + entry for entry in inputArray]
 
+### some fancy key-binding visuals:
+fancyKeyBindImageLoaded = False # if the keyboard fails to load, the rest of the code should just run anyway
+try: # the fancy keyboard stuff
+    import fancy.keyboard_fancy as KB_fcy
+    fancyKeyBindImageLoaded = True
+except Exception as excep:
+    print("failed to load fancy keyboard stuff. Exception:", excep)
+
+def generateFancyKeyBindingImage(maxRes: tuple[int,int], silent:bool=False) -> pygame.Surface:
+    """ produce a legend of all the key bindings. Only call if(fancyKeyBindImageLoaded == True) """
+    if(not fancyKeyBindImageLoaded):  print("can't generateFancyKeyBindingImage(), because fancyKeyBindImageLoaded == False");  return(None)
+    ## some sub-functions:
+    def drawRectAlpha(surfaceToDrawOn:pygame.Surface, colorWithAlpha:pygame.Color|tuple[int,int,int,int], rect:pygame.Rect):
+        rect_surf = pygame.Surface(rect.size, pygame.SRCALPHA) # drawing with alpha requires a little more effort
+        pygame.draw.rect(rect_surf, colorWithAlpha, rect_surf.get_rect())
+        surfaceToDrawOn.blit(rect_surf, rect_surf.get_rect().move(*rect.topleft))
+    def HSVAcolor(hueIndex:float=1.0, saturation:float=1.0, value:float=1.0, alpha:float=1.0) -> pygame.Color:
+        color = pygame.Color(0,0,0,0) # init var
+        color.hsva = (int(hueIndex*360),int(saturation*100),int(value*100),int(alpha*100)) # Note: the hueIndex multiplier should not be easily multiply to a multiple of 360
+        return(color)
+    ## house everything in a try-except, as this is kinda funky (and definitly NOT backwards-compatible)
+    try:
+        import pygameUI as PGUI
+        keyBindColorList: dict[str,pygame.Color] = PGUI.keyBindings.copy() # copy the list and replace the (whole!) entries with color objects
+        ## start with the keyboard itself:
+        keyboardSurface: pygame.Surface = KB_fcy.keyboardImage.copy()
+        colorCounter = 0
+        for bindingName in PGUI.keyBindings: # Note: iterator 'bindingName' is the name to display in the legend, and the key (asin dict{} key) to retrieve the (list of) keycode(s)
+            ## pick a color
+            hue = colorCounter/len(PGUI.keyBindings);  saturation = 0.5 + (0.5 * np.random.random());  value = 0.5 + (0.5 * np.random.random());  alpha = 0.5 + (0.25 * np.random.random()) # TBD: improve?
+            keyBindColorList[bindingName] = HSVAcolor(hue, saturation, value, alpha) # generate a unique color
+            colorCounter += 1 # bit of a crappy forloop, but whatever (Dicts will be Dicts)
+            ## find the keys (that corrospond to the current bind-group) and color them in
+            keyCodesToColor: list[int] = []
+            if(type(PGUI.keyBindings[bindingName]) is int): # if it's a single key binding
+                keyCodesToColor.append(PGUI.keyBindings[bindingName])
+            else: # assume the key binding is in an iterable (list, tuple, etc.)
+                keyCodesToColor = PGUI.keyBindings[bindingName] # replace list
+            for keyCode in keyCodesToColor:
+                for (keyCodes, boundingRect) in KB_fcy.keyBoundingBoxes:
+                    if(keyCode == keyCodes[0]):
+                        drawRectAlpha(keyboardSurface, keyBindColorList[bindingName], pygame.Rect(boundingRect))
+                        break # bounding box and key binding are successfully paired, move onto the next key (but use the same color)
+        ## next, make a legend of all the key bindings
+        ## (NOTE: you could try to predict whether it will fit within maxRes here, but it's just easier to do it inefficiently...)
+        legendFontArgs = ['Century Gothic', 20, True, False] # font parameters as: [font_name, size, BOLD, italic]
+        legendFont = pygame.font.SysFont(*legendFontArgs) # Note: font size may shrink, depending on whether the whole thing fits on the screen or not
+        legendFontColor = pygame.Color(0,0,0);  legendBackgroundColor = pygame.Color(255,255,255) # black letters, white background (to match the keyboard image)
+        for renderRetryCount in range(3): # should only repeat once at most. loop is broken by break call when it the thing fits into maxRes
+            renderedFonts: list[pygame.Surface] = [] # init list
+            legendSurfaceMinWidth: int = 0;   legendTextEdgeMargin = 10;   legendTextSpacing = 2
+            for bindingName in keyBindColorList:
+                boundKeyString: str = " "
+                if(type(PGUI.keyBindings[bindingName]) is int): # if it's a single key binding
+                    boundKeyString += pygame.key.name(PGUI.keyBindings[bindingName]) # single key
+                else: # assume the key binding is in an iterable (list, tuple, etc.)
+                    for i in range(len(PGUI.keyBindings[bindingName])): # multiple key
+                        boundKeyString += pygame.key.name(PGUI.keyBindings[bindingName][i])  +  (" / " if(i<(len(PGUI.keyBindings[bindingName])-1)) else "")
+                invertedColor = pygame.Color(255-keyBindColorList[bindingName].r, 255-keyBindColorList[bindingName].g, 255-keyBindColorList[bindingName].b, 255-keyBindColorList[bindingName].a)
+                # combinedLegendEntrySurface = legendFont.render(boundKeyString + "  -> " + bindingName, False, legendFontColor, keyBindColorList[bindingName]) # the quicker way
+                boundKeyText = legendFont.render(boundKeyString+" ", False, invertedColor, keyBindColorList[bindingName]) # color the background of the text like the corrosponding keys
+                functionText = legendFont.render(" = " + bindingName, False, legendFontColor, legendBackgroundColor)
+                combinedLegendEntrySurface = pygame.Surface([boundKeyText.get_width()+functionText.get_width(), max(boundKeyText.get_height(),functionText.get_height())]) # init combined text surface
+                combinedLegendEntrySurface.blits(((boundKeyText,[0,0]),(functionText,[boundKeyText.get_width(),0])),False) # blit the texts together
+                renderedFonts.append(combinedLegendEntrySurface)
+                legendSurfaceMinWidth = max(legendSurfaceMinWidth, renderedFonts[-1].get_width()) # widest text determines legend width
+            legendSurface = pygame.Surface([legendSurfaceMinWidth + legendTextEdgeMargin, len(keyBindColorList) * (legendFont.get_linesize()+legendTextSpacing) + legendTextEdgeMargin])
+            legendSurface.fill(legendBackgroundColor)
+            for i in range(len(renderedFonts)):
+                legendSurface.blit(renderedFonts[i], [int(legendTextEdgeMargin/2), int(legendTextEdgeMargin/2) + (i * (legendFont.get_linesize() + legendTextSpacing))])
+            ## combine the keyboard and the legend:
+            completeLegendSurface = pygame.Surface([keyboardSurface.get_width()+legendSurface.get_width(), max(keyboardSurface.get_height(),legendSurface.get_height())])
+            completeLegendSurface.fill(legendBackgroundColor)
+            completeLegendSurface.blits(((keyboardSurface,[0,0]),(legendSurface,[keyboardSurface.get_width(),0])),False)
+            ## now take a small detour to save an image (for the github README, mostly)
+            if(renderRetryCount == 0): # only save the highest-res version
+                pygame.image.save(completeLegendSurface, "keyBindLegend.png")
+            ## (this next part is not very efficient...) See if the keyboard + legend fits, and if it doesn't, resize the keyboard and re-render the text
+            if((completeLegendSurface.get_width() > maxRes[0]) or (completeLegendSurface.get_height() > maxRes[1])): # if the created image is too large
+                ## OH NO, the whole thing was too large!. Figure out what dimensions it should have been, scale the keyboard image and re-render the text
+                scalar = min(maxRes[0]/completeLegendSurface.get_width(), maxRes[1]/completeLegendSurface.get_height()) # make it just barely fit
+                # keyboardSurface = pygame.transform.scale_by(keyboardSurface, scalar) # Note: this function was only introduced in pygame 2.1.3, so i'll just stick with the old scale() for now
+                keyboardSurface = pygame.transform.scale(keyboardSurface, [int(keyboardSurface.get_width()*scalar), int(keyboardSurface.get_height()*scalar)]) # Note: in pygame 2.1.3, a function
+                legendFontArgs[1] = max(8, int(scalar*(legendFont.get_ascent()-1))) # update scale. NOTE: not sure why, but 'ascent'-1 is the 'size' value in this initializer
+                legendFont = pygame.font.SysFont(*legendFontArgs) # to change the font size, the whole thing needs to re-init. That's why legendFontArgs exist
+            else: break # the whole thing fits within the maxRes, return that sucker!
+        return(completeLegendSurface)
+    except Exception as excep:
+        if(not silent):  print("failed to render fancy key binding thingy. Exception:", excep)
+
 
 class pygameWindowHandler():
     """ a handler for a pygame window. This class does not render things,
          it just handles the basic interactions with the OS,
          like opening, closing changing resolution, etc."""
-    def __init__(self, resolution: tuple[int,int], windowName="(pygame) window"):
+    def __init__(self, resolution: tuple[int,int], windowName:str="(pygame) window", iconFilename:str|None=None):
         """initialize pygame window
             (one pygame window can host multiple pygameDrawer objects by using the drawOffset variable)"""
         self.windowStarted = False # just handy for debug
@@ -45,6 +135,9 @@ class pygameWindowHandler():
         self.window: pygame.Surface = pygame.display.set_mode(resolution, pygame.RESIZABLE)
         self.oldWindowSize: tuple[int, int] = self.window.get_size()
         pygame.display.set_caption(windowName)
+        if((iconFilename != "") if (iconFilename is not None) else False):
+            try: pygame.display.set_icon(pygame.image.load(iconFilename))
+            except Exception as excep: print("failed to replace pygame icon from filename:", iconFilename, " Exception:", excep)
         self.windowStarted = True # indicate that the code ran successfully
         self.keepRunning = True
 
@@ -117,14 +210,13 @@ class pygameDrawer():
         self.FPSdata = []
         self.FPSdisplayInterval = 0.25
         self.FPSdisplayTimer = time.time()
-        self.FPSrenderedFonts = []
+        self.FPSrenderedFonts: list[pygame.Surface] = []
         
         self.statDisplayTimer = time.time()
         self.statDisplayInterval = 0.1
-        self.statRenderedFonts = []
+        self.statRenderedFonts: list[pygame.Surface] = []
 
         self.lastFilename = "" # the name of a loaded file
-        #self.lastFilenameRenderedFont = None # todo: avoid having to render this every loop, maybe?
 
         self.drawGrid = True #a simple grid to help make clear how big units of measurement are. (TBD in 3D rendering mode!)
         
@@ -135,13 +227,16 @@ class pygameDrawer():
             # self.sizeScale = # TBD: show whole thing
         except Exception as theExcept:
             print("couldn't set viewOffset and sizeScale to show the thing:", theExcept)
-        
+
+        self.showHelpScreen = False # display the keyboard bindings in a fun and visual way
+        if(fancyKeyBindImageLoaded): # only if the keyboard stuff actually loaded correctly
+            self.keyBindImageRendered = generateFancyKeyBindingImage(self.drawSize)
 
         self.localVar = None # a terrible hack to get python pointers
         self.localVarUpdated = False # a flag for UI interactions to set
         self.debugText: dict[str,list[str]] = None # a list of some text to display
         self.debugTextKey: str = 'few' # when no key is selected, default to empty string
-        from __main__ import mmCopperToOz # bad
+        from __main__ import coilClass, mmCopperToOz # bad
         self.makeDebugText: Callable[['coilClass'], dict[str,list[str]]] = lambda coil:{     'few' : [
                                                                                     "diam [mm]: "+str(round(coil.diam, 1)),
                                                                                     "shape: "+coil.shape.__class__.__name__,
@@ -154,11 +249,11 @@ class pygameDrawer():
                                                                                     "resistance [mOhm]: "+str(round(coil.calcTotalResistance() * 1000, 2)),
                                                                                     "inductance [uH]: "+str(round(coil.calcInductance() * 1000000, 2)) ],
                                                                                         'all' : [
-                                                                                    "diam [mm]: "+str(round(coil.diam, 1)),
-                                                                                    "trueDiam [mm]: "+str(round(coil.calcTrueDiam(), 1)),
-                                                                                    "simpleInnerDiam [mm]: "+str(round(coil.calcSimpleInnerDiam(), 1)),
-                                                                                    "trueInnerDiam [mm]: "+str(round(coil.calcTrueInnerDiam(), 1)),
-                                                                                    "trueDiamOffset [mm]: "+str(round(coil._calcTrueDiamOffset(), 1)),
+                                                                                    "diam [mm]: "+str(round(coil.diam, 2)),
+                                                                                    "trueDiam [mm]: "+str(round(coil.calcTrueDiam(), 2)),
+                                                                                    "simpleInnerDiam [mm]: "+str(round(coil.calcSimpleInnerDiam(), 2)),
+                                                                                    "trueInnerDiam [mm]: "+str(round(coil.calcTrueInnerDiam(), 2)),
+                                                                                    "trueDiamOffset [mm]: "+str(round(coil._calcTrueDiamOffset(), 2)),
                                                                                     "shape: "+coil.shape.__class__.__name__,
                                                                                     "formula: "+coil.formula,
                                                                                     "turns: "+str(coil.turns),
@@ -214,8 +309,8 @@ class pygameDrawer():
             else:
                 FPSstrings = ["inf"]
                 #print("FPS: inf")
-            self.FPSdata = []
-            self.FPSrenderedFonts = []
+            self.FPSdata.clear()
+            self.FPSrenderedFonts.clear()
             for FPSstr in FPSstrings:
                 self.FPSrenderedFonts.append(self.normalFont.render(FPSstr, False, self.normalFontColor)) #render string (only 1 line per render allowed), no antialiasing, text color opposite of bgColor
         for i in range(len(self.FPSrenderedFonts)):
@@ -232,7 +327,7 @@ class pygameDrawer():
             if((self.debugTextKey in self.debugText) if (self.debugText is not None) else False):
                 [statsToShow.append(entry) for entry in self.debugText[self.debugTextKey] if (entry != "")]
                     
-            self.statRenderedFonts = [] # a list of rendered fonts (images)
+            self.statRenderedFonts.clear() # a list of rendered fonts (images)
             for textStr in statsToShow:
                 self.statRenderedFonts.append(self.normalFont.render(textStr, False, self.normalFontColor))
         for i in range(len(self.statRenderedFonts)):
@@ -340,6 +435,11 @@ class pygameDrawer():
             dashEndPos = distAnglePosToPos(i*dashPixelPeriod + dashPixelPeriod*dashDutyCycle, angle, startPixelPos)
             pygame.draw.line(self.windowHandler.window, lineColor, dashStartPos, dashEndPos, int(lineWidth))
     
+    def drawKeyBindLegend(self):
+        if((self.keyBindImageRendered is not None) if (fancyKeyBindImageLoaded and self.showHelpScreen) else False): # only if the keyboard stuff actually loaded correctly
+            offset_temp = [self.drawSize[0]/2 - self.keyBindImageRendered.get_width()/2, self.drawSize[1]/2 - self.keyBindImageRendered.get_height()/2]
+            self.windowHandler.window.blit(self.keyBindImageRendered, offset_temp)
+
     ## the arc drawing function works just fine, but it looks bad and makes the whole code terribly slow (not even my fault (this time), pygame is to blame)
     # def _shortArc(self, lineColor: pygame.Color, startPos: np.ndarray, endPos: np.ndarray, centerPos: np.ndarray, lineWidthReal: float):
     #     """draw an arc (in place of a straight line, which has some rendering limitations)
@@ -357,6 +457,7 @@ class pygameDrawer():
 
     def drawLineList(self, lineLists: list[list[tuple[int,int]]]):
         """draw a series of lines (used for rendering coils)"""
+        from __main__ import coilClass # bad code!
         coilToDraw: 'coilClass' = self.localVar # if it crashes here, then it's probably time to fix this whole mess (rewrite the rendering class interaction with __main__)
         if(len(np.array(lineLists).shape) < 3):  lineLists = [lineLists, coilToDraw.renderAsCoordinateList(True)] # NOTE: backwards-compatibility hack for V0 & V1. Terrible, i hate it, it should probably work
         if((len(lineLists) < 1) or (len(lineLists) < min(coilToDraw.layers, 2))):   print("can't drawLineList(), not enough lineLists provided");   return
@@ -405,6 +506,8 @@ class pygameDrawer():
         if(drawSpeedTimers is not None):  drawSpeedTimers.append(('drawStatText', time.time()))
         self.drawLoadedFilename()
         if(drawSpeedTimers is not None):  drawSpeedTimers.append(('drawLoadedFilename', time.time()))
+        self.drawKeyBindLegend()
+        if(drawSpeedTimers is not None):  drawSpeedTimers.append(('drawLoadedFilename', time.time()))
 
     def redraw(self):
         """draw all elements"""
@@ -427,6 +530,8 @@ class pygameDrawer():
             self.sizeScale = min(drawSize[0]/self.drawSize[0], drawSize[1]/self.drawSize[1]) * self.sizeScale #auto update sizeScale to match previous size
         self.drawSize = (int(drawSize[0]), int(drawSize[1]))
         self.drawOffset = (int(drawOffset[0]), int(drawOffset[1]))
+        if(fancyKeyBindImageLoaded): # only if the keyboard stuff actually loaded correctly
+            self.keyBindImageRendered = generateFancyKeyBindingImage(self.drawSize, True) # update keyboard layout (silently)
         print("updateWindowSize:", self.drawSize, self.drawOffset, self.sizeScale, autoMatchSizeScale)
 
 
