@@ -17,7 +17,7 @@ paper[3] @ https://www.researchgate.net/publication/271291453_Design_and_Optimiz
 UNUSED (for now): paper[4] @ https://inpressco.com/wp-content/uploads/2017/10/Paper26.1835-1841.pdf
 
 the single-layer math comes from paper[1]
-the multilayer coil calculations came from paper[2] and paper[3]  NOTE: V2 has adjustments to the coefficients!
+the multilayer coil calculations originally came from paper[2] and paper[3], but now come from a formula based on my own samples
 (paper[4] may provide an altermate calculation for mutual inductance, but that code is currently unfinished)
 
 the current sheet formula from paper[1] is also mentioned in paper[2] and paper[3], which gives some confidence to prefer that method
