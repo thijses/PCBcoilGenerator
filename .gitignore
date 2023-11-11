@@ -1,3 +1,23 @@
-*.pyc
+# Editors
+.vscode/
+.idea/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# generated output files
 *.dxf
+*.xlsx
+#keyBindLegend.png
+*.png
+
+# whitelist stuff (DON'T ignore)
+!keyBindLegend.png
+!/documentation/*
+
 deleteme.py

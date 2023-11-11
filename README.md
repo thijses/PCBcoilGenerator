@@ -9,6 +9,15 @@ The original math came from 3 papers:
 - [2] fills in the gaps left in [3]
 For my data/analysis/results, please see the the PDF in the 'documentation' folder.
 
+screenshot:  
+<img src="documentation/screenshot%20of%20code.png" width="500">
+<!-- ![screenshot of GUI](documentation/screenshot%20of%20code.png) -->
+
+shapes currently supported: (screenshots)  
+<img src="documentation/shapes.png" width="400">  
+<!-- ![shapes](documentation/shapes.png) -->  
+more (custom) shapes are technically possible (the class structure is there), but paper [1] doesn't provide parameters for arbetary shapes.
+
 requirements:
 - python 3.10ish (tested with 3.10.8)
 libraries:
