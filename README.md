@@ -46,3 +46,7 @@ links to papers:
 
 - (probably better alternative solution) https://www.mdpi.com/1424-8220/21/14/4864
 - (helps justify inaccuracy of results)  https://www.mdpi.com/1424-8220/22/10/3815
+
+
+Notes (3 years later):
+- i just saw that [@nm-z](https://github.com/nm-z) created [Coilgen-V3](https://github.com/nm-z/Coilgen-V3) (kudos! btw), which also includes [resonant frequency estimation](https://github.com/nm-z/Coilgen-V3?tab=readme-ov-file#12-resonant-frequency-estimation). Their math [looks efficient](https://github.com/nm-z/Coilgen-V3/commit/0cb02c7d4dfeea07b05b7535c97f68f39c5d0847), so i'd love to add it to my own repo too (at some point).
